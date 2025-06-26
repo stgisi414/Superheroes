@@ -1,0 +1,6 @@
+{
+  "name": "Gemini RPG Orchestrator",
+  "description": "A web-based, text-centric RPG application where users create their own superhero or villain and engage in a dynamic, AI-driven narrative orchestrated by Gemini.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
