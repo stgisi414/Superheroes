@@ -6,7 +6,8 @@ export default defineConfig(({ mode }) => {
     return {
       server: {
         host: '0.0.0.0',
-        port: 5173
+        port: 5173,
+        allowedHosts: true
       },
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
