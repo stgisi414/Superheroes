@@ -1,24 +1,54 @@
 
-import React, { useState, useCallback } from 'react';
-import { Character, GameState, StoryLogEntry } from './types';
-import CharacterCreator from './services/CharacterCreator/CharacterCreator'; // Corrected path
+import React, { useState, useCallback, useEffect } from 'react';
+import { Character, GameState as AppState, StoryLogEntry, TextStoryLogEntry } from './types';
+import CharacterCreator from './services/CharacterCreator/CharacterCreator';
 import GameView from './components/GameView';
-import { geminiService } from './services/geminiService'; // Ensure this path is correct
+import LandingPage from './components/LandingPage';
+import { geminiService } from './services/geminiService';
+import { loadGame, saveGame, GameState } from './services/localStorageService';
 
 const App: React.FC = () => {
-  const [gameState, setGameState] = useState<GameState>(GameState.CharacterCreation);
+  const [appState, setAppState] = useState<AppState>(AppState.Landing);
   const [character, setCharacter] = useState<Character | null>(null);
   const [storyLog, setStoryLog] = useState<StoryLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  
+  const [hasSavedGame, setHasSavedGame] = useState<boolean>(false);
+
+  useEffect(() => {
+    const savedGame = loadGame();
+    if (savedGame) {
+      setHasSavedGame(true);
+    }
+  }, []);
+
+  const handleStartNewGame = () => {
+    setAppState(AppState.CharacterCreation);
+  };
+
+  const handleLoadGame = () => {
+    const savedGame = loadGame();
+    if (savedGame) {
+      setCharacter(savedGame.character);
+      // Assuming you also save and load the story log
+      // setStoryLog(savedGame.storyLog); 
+      setAppState(AppState.Playing);
+    }
+  };
+
   const handleCharacterCreated = useCallback(async (newCharacter: Character) => {
     setCharacter(newCharacter);
-    setGameState(GameState.Playing);
+    setAppState(AppState.Playing);
     setIsLoading(true);
-    // Add initial story entry after character creation
-    setStoryLog([{ type: 'text', content: `Welcome, ${newCharacter.name}. Your adventure begins...`, id: Date.now().toString() }]);
+    const initialEntry: StoryLogEntry = { type: 'text', content: `Welcome, ${newCharacter.name}. Your adventure begins...`, id: Date.now().toString() };
+    setStoryLog([initialEntry]);
     
-    // Simulate Gemini's initial narration after character creation
+    const gameState: GameState = {
+      character: newCharacter,
+      // storyLog: [initialEntry]
+    };
+    saveGame(gameState);
+    setHasSavedGame(true);
+
     try {
       await geminiService.streamGameResponse(
         "Generate a brief, intriguing introductory scenario for the newly created character. Describe their immediate surroundings and hint at a looming challenge or mystery. The character's concept is: " + newCharacter.concept,
@@ -26,12 +56,15 @@ const App: React.FC = () => {
         (chunk) => {
           if (chunk.narrativePart) {
             setStoryLog(prevLog => {
-              // If the last entry was text and also from this stream, append. Otherwise, new entry.
-              const lastEntry = prevLog[prevLog.length -1];
+              const lastEntry = prevLog[prevLog.length - 1];
               if (lastEntry && lastEntry.type === 'text' && chunk.streamId && lastEntry.streamId === chunk.streamId) {
-                return [...prevLog.slice(0, -1), {...lastEntry, content: lastEntry.content + chunk.narrativePart}];
+                return [...prevLog.slice(0, -1), { ...lastEntry, content: lastEntry.content + chunk.narrativePart }];
               }
-              return [...prevLog, { type: 'text', content: chunk.narrativePart, id: Date.now().toString() + Math.random(), streamId: chunk.streamId }];
+              if (chunk.streamId) {
+                const newEntry: TextStoryLogEntry = { type: 'text', content: chunk.narrativePart, id: Date.now().toString() + Math.random(), streamId: chunk.streamId };
+                return [...prevLog, newEntry];
+              }
+              return prevLog;
             });
           }
           if (chunk.updatedCharacter) {
@@ -45,10 +78,13 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-
   }, []);
 
-  if (gameState === GameState.CharacterCreation || !character) {
+  if (appState === AppState.Landing) {
+    return <LandingPage onStartNewGame={handleStartNewGame} onLoadGame={handleLoadGame} hasSavedGame={hasSavedGame} />;
+  }
+
+  if (appState === AppState.CharacterCreation || !character) {
     return <CharacterCreator onCharacterCreated={handleCharacterCreated} />;
   }
 

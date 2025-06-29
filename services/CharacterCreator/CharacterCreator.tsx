@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback } from 'react';
-import { Character, CharacterStats, StatName, CharacterCreationStep } from '../../types';
-import { DEFAULT_STATS, INITIAL_STAT_POINTS, GEMINI_TEXT_MODEL, PLACEHOLDER_IMAGE_DIMENSIONS } from '../../constants';
+import { Character, CharacterStats, CharacterCreationStep } from '../../types';
+import { DEFAULT_STATS } from '../../constants';
 import { geminiService } from '../geminiService';
 import Step1CoreConcept from './Step1CoreConcept';
 import Step2OriginStory from './Step2OriginStory';

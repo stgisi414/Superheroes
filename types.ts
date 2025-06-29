@@ -1,5 +1,6 @@
 
 export enum GameState {
+  Landing = 'Landing',
   CharacterCreation = 'CharacterCreation',
   Playing = 'Playing',
   Loading = 'Loading', // Generic loading state if needed beyond specific actions

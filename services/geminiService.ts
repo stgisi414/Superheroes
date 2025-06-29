@@ -1,9 +1,8 @@
 
 // Simulates interactions with the Gemini API and other backend services.
 // In a real application, this would make actual API calls.
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai"; // These might not be used directly in simulation but good to show intent
-import { Character, CharacterStats, GameUpdateChunk, MusicMood, VoiceProfile, StatName } from '../types';
-import { GEMINI_TEXT_MODEL, PLACEHOLDER_IMAGE_DIMENSIONS } from '../constants';
+import { Character, GameUpdateChunk, MusicMood, VoiceProfile, StatName } from '../types';
+import { PLACEHOLDER_IMAGE_DIMENSIONS } from '../constants';
 
 // IMPORTANT: This service SIMULATES Gemini calls. It does not use the actual @google/genai SDK for these simulations.
 // The API key is assumed to be available via process.env.GEMINI_API_KEY as per requirements.
