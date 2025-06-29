@@ -1,4 +1,5 @@
 import React from 'react';
+import SuperheroLogo from './SuperheroLogo';
 
 interface LandingPageProps {
   onStartNewGame: () => void;
@@ -11,6 +12,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartNewGame, onLoadGame, h
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-600 via-purple-600 to-red-600 halftone-bg">
       <div className="comic-panel w-full max-w-2xl p-8 text-center animate-comic-pop">
         <div className="mb-8">
+          <div className="flex justify-center mb-6">
+            <SuperheroLogo size="large" />
+          </div>
           <h1 className="font-bangers text-6xl mb-4 pow-text transform -rotate-2">
             COMIC RPG
           </h1>
