@@ -14,9 +14,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [characterName, setCharacterName] = useState<string>('');
   const [characterConcept, setCharacterConcept] = useState<string>('');
-  const [originStory] = useState<string>('');
+  const [originStory, setOriginStory] = useState<string>('');
   const [portraitUrl] = useState<string>('');
   const [stats] = useState<CharacterStats>(DEFAULT_STATS);
+  const [isGeneratingOrigin, setIsGeneratingOrigin] = useState<boolean>(false);
 
   const totalSteps = 4;
 
@@ -69,6 +70,20 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
   const getStepTitle = (step: number) => {
     const titles = ['HERO IDENTITY', 'ORIGIN TALE', 'PORTRAIT', 'POWER LEVELS'];
     return titles[step - 1];
+  };
+
+  const handleAcceptOrigin = () => {
+    handleNext();
+  };
+
+  const handleRegenerateOrigin = () => {
+    // Implement your origin story regeneration logic here
+    // This is a placeholder
+    setIsGeneratingOrigin(true);
+    setTimeout(() => {
+      setOriginStory("A new origin story generated!");
+      setIsGeneratingOrigin(false);
+    }, 2000);
   };
 
   return (
@@ -129,9 +144,9 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
           {currentStep === 2 && (
             <Step2OriginStory
               originStory={originStory}
-              isLoading={false}
-              onAccept={handleNext}
-              onRegenerate={() => {}}
+              isLoading={isGeneratingOrigin}
+              onAccept={handleAcceptOrigin}
+              onRegenerate={handleRegenerateOrigin}
             />
           )}
 
