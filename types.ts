@@ -113,4 +113,12 @@ export enum CharacterCreationStep {
     Portrait = 3,
     StatAllocation = 4,
 }
+
+export enum CreativityLevel {
+    Conservative = 0.3,
+    Balanced = 0.5,
+    Creative = 0.7,
+    Imaginative = 0.9,
+    Wildly_Creative = 1.0,
+}
     

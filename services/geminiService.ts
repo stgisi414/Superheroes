@@ -1,4 +1,3 @@
-
 // Simulates interactions with the Gemini API and other backend services.
 // In a real application, this would make actual API calls.
 import { Character, GameUpdateChunk, MusicMood, VoiceProfile, StatName } from '../types';
@@ -27,12 +26,12 @@ class GeminiService {
 
   constructor() {
     logger.info(LogCategory.GEMINI, 'Initializing Gemini service');
-    
+
     // This adheres to the requirement: "The API key must be obtained exclusively from the environment variable process.env.GEMINI_API_KEY"
     // And "Assume this variable is pre-configured, valid, and accessible"
     this.apiKey = process.env.GEMINI_API_KEY || "SIMULATED_GEMINI_API_KEY_DEV_ONLY";
     this.useRealAPI = this.apiKey !== "SIMULATED_GEMINI_API_KEY_DEV_ONLY" && this.apiKey !== "YOUR_GEMINI_API_KEY_PLACEHOLDER";
-    
+
     if (!this.useRealAPI) {
         const warningMsg = "GEMINI_API_KEY not found in process.env. Using a placeholder. Real Gemini features will not work.";
         console.warn(warningMsg);
@@ -44,7 +43,7 @@ class GeminiService {
     } else {
         logger.info(LogCategory.GEMINI, 'Real Gemini API key found and configured');
     }
-    
+
     // Uncomment the lines below when you want to use the real Gemini API:
     // if (this.useRealAPI) {
     //   this.genAI = new GoogleGenerativeAI(this.apiKey);
@@ -52,10 +51,10 @@ class GeminiService {
   }
 
 
-  async generateOriginStory(name: string, concept: string): Promise<string> {
+  async generateOriginStory(name: string, concept: string, creativityLevel: number = 0.7): Promise<string> {
     const endTimer = logPerformance(LogCategory.GEMINI, 'Generate origin story');
     logger.info(LogCategory.GEMINI, 'Starting origin story generation', { name, concept });
-    
+
     const prompt = `Generate a brief, compelling origin story (2-3 paragraphs) for a character named "${name}". 
     Their core concept is: "${concept}". 
     The story should be engaging and set a clear tone (heroic, tragic, mysterious, etc.) based on the concept.
@@ -82,7 +81,7 @@ class GeminiService {
         //   // Fallback to simulation if API fails
         //   return this.simulateOriginStory(name, concept, prompt);
         // }
-        
+
         // For now, still simulate even with real API key until you uncomment the code above
         return this.simulateOriginStory(name, concept, prompt);
       } else {
@@ -100,25 +99,25 @@ class GeminiService {
   private async simulateOriginStory(name: string, concept: string, prompt: string): Promise<string> {
     const endTimer = logPerformance(LogCategory.GEMINI, 'Simulate origin story');
     logger.debug(LogCategory.GEMINI, 'Starting origin story simulation', { name, concept });
-    
+
     const delayTime = 1500 + Math.random() * 1000;
     logger.debug(LogCategory.GEMINI, `Simulating API delay: ${delayTime.toFixed(0)}ms`);
     await delay(delayTime);
-    
+
     // Simulated Gemini response
     const generatedStory = `In the neon-drenched alleys of Neo-Veridia, ${name} was once just another face in the crowd. ${concept.toLowerCase().includes('tech') ? 'A brilliant but overlooked engineer,' : 'An ordinary individual with an extraordinary destiny,'} their life took a sharp turn when ${concept.toLowerCase().includes('shadowmancer') ? 'they stumbled upon an ancient tome of forbidden shadow magic in a forgotten library.' : concept.toLowerCase().includes('electricity') ? 'a freak accident involving an experimental energy core bathed them in raw, untamed electrical power.' : 'a mysterious event granted them abilities beyond human comprehension.'}
 
     This transformation was not without its cost. ${concept.toLowerCase().includes('villain') ? `Twisted by the power or a perceived betrayal, ${name} vowed to reshape the world in their own image, believing the old ways were corrupt and weak.` : `Haunted by the incident but determined to use their newfound gifts for good, ${name} embraced their new identity, a beacon of hope against the encroaching darkness.`} 
-    
+
     Now, ${name} walks a path shrouded in ${concept.toLowerCase().includes('mysterious') ? 'mystery and whispers' : 'danger and uncertainty'}, their actions echoing through the city, a legend in the making. Their true journey has only just begun.`;
-    
+
     logger.info(LogCategory.GEMINI, 'Origin story simulation completed', { 
       name, 
       concept, 
       storyLength: generatedStory.length,
       prompt 
     });
-    
+
     endTimer();
     return generatedStory;
   }
@@ -126,7 +125,7 @@ class GeminiService {
   async generatePortraitPrompt(name: string, concept: string, originStory: string): Promise<string> {
     const endTimer = logPerformance(LogCategory.GEMINI, 'Generate portrait prompt');
     logger.info(LogCategory.GEMINI, 'Generating portrait prompt', { name, concept });
-    
+
     const delayTime = 500 + Math.random() * 500;
     await delay(delayTime);
 
@@ -135,16 +134,16 @@ class GeminiService {
                          concept.toLowerCase().includes('hero') ? "dynamic comic book art style, heroic pose, vibrant colors" :
                          concept.toLowerCase().includes('villain') ? "ominous, powerful stance, dramatic lighting, intense expression" :
                          "detailed character art, cinematic lighting";
-    
+
     const prompt = `Detailed character portrait of ${name}. Concept: "${concept}". Key elements from origin: "${originStory.substring(0, 100)}...". Style: ${styleKeywords}, photorealistic details, high fantasy illustration. Focus on the face and upper body, conveying their personality.`;
-    
+
     logger.info(LogCategory.GEMINI, 'Portrait prompt generated', { 
       name, 
       styleKeywords, 
       prompt,
       originStoryPreview: originStory.substring(0, 100) 
     });
-    
+
     endTimer();
     return prompt;
   }
@@ -152,19 +151,19 @@ class GeminiService {
   async generatePortrait(imagePrompt: string): Promise<string> {
     const endTimer = logPerformance(LogCategory.GEMINI, 'Generate portrait image');
     logger.info(LogCategory.GEMINI, 'Starting portrait image generation', { prompt: imagePrompt });
-    
+
     const delayTime = 2000 + Math.random() * 1500;
     logger.debug(LogCategory.GEMINI, `Simulating image generation delay: ${delayTime.toFixed(0)}ms`);
     await delay(delayTime);
-    
+
     // This would be a call to fal.ai or similar. We simulate with Picsum.
     const imageUrl = simulatePicsumImage(PLACEHOLDER_IMAGE_DIMENSIONS.portrait.width, PLACEHOLDER_IMAGE_DIMENSIONS.portrait.height);
-    
+
     logger.info(LogCategory.GEMINI, 'Portrait image generated', { 
       imageUrl, 
       dimensions: PLACEHOLDER_IMAGE_DIMENSIONS.portrait 
     });
-    
+
     endTimer();
     return imageUrl;
   }
@@ -174,7 +173,7 @@ class GeminiService {
     await delay(2000 + Math.random() * 1500);
     return simulatePicsumImage(PLACEHOLDER_IMAGE_DIMENSIONS.scene.width, PLACEHOLDER_IMAGE_DIMENSIONS.scene.height);
   }
-  
+
   // This is the main function for game interactions, simulating Gemini's response stream
   async streamGameResponse(
     userCommand: string,
@@ -183,7 +182,7 @@ class GeminiService {
     streamId: string = Date.now().toString()
   ): Promise<void> {
     console.log(`[GeminiService] Simulating streamGameResponse for command: "${userCommand}" by ${character.name}`);
-    
+
     // Simulate Gemini processing and calling tools internally
     // This is a very simplified mock logic. A real Gemini would use complex reasoning.
 
@@ -236,7 +235,7 @@ class GeminiService {
       onChunk({ narrativePart: words[i] + ' ', isProcessing: true, streamId });
       await delay(50 + Math.random() * 30); // Simulate typing speed
     }
-    
+
     // Send image if generated
     if (imageUrl) {
       onChunk({ imageUrl, imageAlt, isProcessing: true, streamId });
@@ -248,13 +247,13 @@ class GeminiService {
       onChunk({ playMusicMood: musicMood, isProcessing: true, streamId });
       await delay(100);
     }
-    
+
     // Send TTS
     if (tts) {
       onChunk({ playTTS: tts, isProcessing: true, streamId });
       await delay(100);
     }
-    
+
     // Send character update
     if (updatedChar) {
        onChunk({ updatedCharacter: updatedChar, isProcessing: true, streamId });
@@ -266,4 +265,3 @@ class GeminiService {
 }
 
 export const geminiService = new GeminiService();
-    

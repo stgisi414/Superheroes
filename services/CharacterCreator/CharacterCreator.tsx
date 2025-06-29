@@ -21,6 +21,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
   const [stats] = useState<CharacterStats>(DEFAULT_STATS);
   const [isGeneratingOrigin, setIsGeneratingOrigin] = useState<boolean>(false);
   const [isGeneratingPortrait, setIsGeneratingPortrait] = useState<boolean>(false);
+  const [creativityLevel, setCreativityLevel] = useState<number>(0.7);
 
   const totalSteps = 4;
 
@@ -46,7 +47,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
         });
         setIsGeneratingOrigin(true);
         try {
-          const generatedStory = await geminiService.generateOriginStory(currentName, currentConcept);
+          const generatedStory = await geminiService.generateOriginStory(currentName, currentConcept, creativityLevel);
           setOriginStory(generatedStory);
           logger.info('CHARACTER_CREATION', 'Origin story auto-generation completed successfully', {
             storyLength: generatedStory.length,
@@ -150,7 +151,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
 
     setIsGeneratingOrigin(true);
     try {
-      const generatedStory = await geminiService.generateOriginStory(characterName, characterConcept);
+      const generatedStory = await geminiService.generateOriginStory(characterName, characterConcept, creativityLevel);
       setOriginStory(generatedStory);
     } catch (error) {
       console.error('Error generating origin story:', error);
@@ -229,8 +230,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
             <Step2OriginStory
               originStory={originStory}
               isLoading={isGeneratingOrigin}
+              creativityLevel={creativityLevel}
               onAccept={handleAcceptOrigin}
               onRegenerate={handleRegenerateOrigin}
+              onCreativityChange={setCreativityLevel}
             />
           )}
 
