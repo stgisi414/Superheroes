@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Character, CharacterStats } from '../../types';
 import { DEFAULT_STATS } from '../../constants';
 import { geminiService } from '../geminiService';
+import { logger } from '../logger';
 import Step1CoreConcept from './Step1CoreConcept';
 import Step2OriginStory from './Step2OriginStory';
 import Step3Portrait from './Step3Portrait';
@@ -19,29 +20,65 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
   const [portraitUrl] = useState<string>('');
   const [stats] = useState<CharacterStats>(DEFAULT_STATS);
   const [isGeneratingOrigin, setIsGeneratingOrigin] = useState<boolean>(false);
+  const [isGeneratingPortrait, setIsGeneratingPortrait] = useState<boolean>(false);
 
   const totalSteps = 4;
 
-  const handleNext = async () => {
-    if (currentStep < totalSteps) {
-      const nextStep = currentStep + 1;
-      setCurrentStep(nextStep);
-      
-      // Auto-generate origin story when entering step 2
-      if (nextStep === 2 && !originStory && characterName && characterConcept) {
+  const handleNext = useCallback(async () => {
+    logger.info('CHARACTER_CREATION', `Advancing from step ${currentStep} to ${currentStep + 1}`);
+
+    if (currentStep === 1) {
+      logger.info('CHARACTER_CREATION', 'Moving to origin story step', {
+        characterName,
+        characterConcept,
+        hasExistingOrigin: !!originStory
+      });
+      setCurrentStep(2);
+      // Auto-generate origin story when moving to step 2
+      if (characterName && characterConcept && !originStory) {
+        logger.info('CHARACTER_CREATION', 'Starting automatic origin story generation');
         setIsGeneratingOrigin(true);
         try {
           const generatedStory = await geminiService.generateOriginStory(characterName, characterConcept);
           setOriginStory(generatedStory);
+          logger.info('CHARACTER_CREATION', 'Origin story auto-generation completed successfully');
         } catch (error) {
-          console.error('Error generating origin story:', error);
+          logger.error('CHARACTER_CREATION', 'Error during automatic origin story generation', error);
           setOriginStory('Unable to generate origin story. Please try again.');
         } finally {
           setIsGeneratingOrigin(false);
         }
+      } else if (originStory) {
+        logger.info('CHARACTER_CREATION', 'Using existing origin story');
       }
+    } else if (currentStep === 2) {
+      logger.info('CHARACTER_CREATION', 'Moving to portrait step', {
+        hasOriginStory: !!originStory,
+        hasExistingPortrait: !!portraitUrl
+      });
+      setCurrentStep(3);
+      // Auto-generate portrait when moving to step 3
+      if (characterName && characterConcept && originStory && !portraitUrl) {
+        logger.info('CHARACTER_CREATION', 'Starting automatic portrait generation');
+        setIsGeneratingPortrait(true);
+        try {
+          const portraitPrompt = await geminiService.generatePortraitPrompt(characterName, characterConcept, originStory);
+          // Simulate portrait generation (replace with actual image generation service)
+          setPortraitUrl(`https://picsum.photos/300/400?random=${Date.now()}`);
+          logger.info('CHARACTER_CREATION', 'Portrait auto-generation completed successfully');
+        } catch (error) {
+          logger.error('CHARACTER_CREATION', 'Error during automatic portrait generation', error);
+        } finally {
+          setIsGeneratingPortrait(false);
+        }
+      } else if (portraitUrl) {
+        logger.info('CHARACTER_CREATION', 'Using existing portrait');
+      }
+    } else if (currentStep < totalSteps) {
+      logger.info('CHARACTER_CREATION', `Moving to step ${currentStep + 1}`);
+      setCurrentStep(currentStep + 1);
     }
-  };
+  }, [currentStep, characterName, characterConcept, originStory, portraitUrl]);
 
   const handleBack = () => {
     if (currentStep > 1) {
@@ -94,7 +131,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
 
   const handleRegenerateOrigin = async () => {
     if (!characterName || !characterConcept) return;
-    
+
     setIsGeneratingOrigin(true);
     try {
       const generatedStory = await geminiService.generateOriginStory(characterName, characterConcept);
@@ -175,7 +212,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
             <Step3Portrait
               portraitUrl={portraitUrl}
               portraitPrompt=""
-              isLoading={false}
+              isLoading={isGeneratingPortrait}
               onAccept={handleNext}
               onRegenerate={() => {}}
             />

@@ -3,6 +3,7 @@ import React from 'react';
 import Button from '../../components/ui/Button'; // Corrected path
 import LoadingSpinner from '../../components/ui/LoadingSpinner'; // Corrected path
 import ScrollableArea from '../../components/ui/ScrollableArea'; // Corrected path
+import { logger } from '../../services/logger';
 
 interface Step2OriginStoryProps {
   originStory: string;
@@ -31,10 +32,28 @@ const Step2OriginStory: React.FC<Step2OriginStoryProps> = ({
         )}
       </ScrollableArea>
       <div className="flex flex-col sm:flex-row justify-center gap-4 mt-4">
-        <Button onClick={onAccept} disabled={isLoading || !originStory} fullWidth>
+        <Button 
+          onClick={() => {
+            logger.info('CHARACTER_CREATION', 'User accepted origin story', {
+              storyLength: originStory.length,
+              storyPreview: originStory.substring(0, 100)
+            });
+            onAccept();
+          }} 
+          disabled={isLoading || !originStory} 
+          fullWidth
+        >
           Accept Origin
         </Button>
-        <Button onClick={onRegenerate} variant="secondary" disabled={isLoading} fullWidth>
+        <Button 
+          onClick={() => {
+            logger.info('CHARACTER_CREATION', 'User requested origin story regeneration from Step 2');
+            onRegenerate();
+          }} 
+          variant="secondary" 
+          disabled={isLoading} 
+          fullWidth
+        >
           {isLoading ? 'Regenerating...' : 'Regenerate Origin'}
         </Button>
       </div>

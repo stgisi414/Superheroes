@@ -1,6 +1,6 @@
-
 import React, { useState } from 'react';
 import Button from '../../components/ui/Button'; // Corrected path
+import { logger } from '../../services/logger';
 
 interface Step1CoreConceptProps {
   onSubmit: (name: string, concept: string) => void;
@@ -56,9 +56,19 @@ const Step1CoreConcept: React.FC<Step1CoreConceptProps> = ({
         />
       </div>
       {error && <p className="text-red-400 text-sm">{error}</p>}
-      <Button type="submit" fullWidth>
-        Next: Forge Origin
-      </Button>
+      <Button 
+          onClick={() => {
+            logger.info('CHARACTER_CREATION', 'Step 1 completed - proceeding to origin story generation', {
+              characterName: name.trim(),
+              characterConcept: concept.trim()
+            });
+            onSubmit(name.trim(), concept.trim());
+          }}
+          disabled={name.trim() === '' || concept.trim() === ''}
+          fullWidth
+        >
+          Next: Forge Origin
+        </Button>
     </form>
   );
 };
