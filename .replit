@@ -6,7 +6,7 @@ channel = "stable-24_05"
 
 [deployment]
 run = ["sh", "-c", "GEMINI_API_KEY=$GEMINI_API_KEY npm run preview"]
-build = ["sh", "-c", "npm run build"]
+build = ["sh", "-c", "GEMINI_API_KEY=$GEMINI_API_KEY npm run build"]
 deploymentTarget = "cloudrun"
 
 [[ports]]
