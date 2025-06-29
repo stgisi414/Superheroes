@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Character, CharacterStats, StatName } from '../../types';
-import { DEFAULT_STATS, INITIAL_STAT_POINTS } from '../../constants';
+import { Character, CharacterStats } from '../../types';
+import { DEFAULT_STATS } from '../../constants';
 import Step1CoreConcept from './Step1CoreConcept';
 import Step2OriginStory from './Step2OriginStory';
 import Step3Portrait from './Step3Portrait';
@@ -14,9 +14,9 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [characterName, setCharacterName] = useState<string>('');
   const [characterConcept, setCharacterConcept] = useState<string>('');
-  const [originStory, setOriginStory] = useState<string>('');
-  const [portraitUrl, setPortraitUrl] = useState<string>('');
-  const [stats, setStats] = useState<CharacterStats>(DEFAULT_STATS);
+  const [originStory] = useState<string>('');
+  const [portraitUrl] = useState<string>('');
+  const [stats] = useState<CharacterStats>(DEFAULT_STATS);
 
   const totalSteps = 4;
 
@@ -34,12 +34,14 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
 
   const handleComplete = (finalStats: CharacterStats) => {
     const character: Character = {
+      id: Date.now().toString(),
       name: characterName,
       concept: characterConcept,
       originStory: originStory,
       portraitUrl: portraitUrl,
       stats: finalStats,
-      health: 100,
+      abilities: [],
+      inventory: [],
     };
     onCharacterCreated(character);
   };
@@ -116,12 +118,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
         <div className="comic-panel-dark p-8 mb-8 animate-comic-pop">
           {currentStep === 1 && (
             <Step1CoreConcept
-              name={characterName}
-              setName={setCharacterName}
-              concept={characterConcept}
-              setConcept={setCharacterConcept}
-              onNext={handleNext}
-              onSubmit={(name: string, concept: string) => {
+              onSubmit={(name, concept) => {
                 setCharacterName(name);
                 setCharacterConcept(concept);
                 handleNext();
@@ -132,29 +129,26 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
           {currentStep === 2 && (
             <Step2OriginStory
               originStory={originStory}
-              setOriginStory={setOriginStory}
-              onNext={handleNext}
-              onBack={handleBack}
+              isLoading={false}
+              onAccept={handleNext}
+              onRegenerate={() => {}}
             />
           )}
 
           {currentStep === 3 && (
             <Step3Portrait
               portraitUrl={portraitUrl}
-              setPortraitUrl={setPortraitUrl}
-              characterName={characterName}
-              characterConcept={characterConcept}
-              onNext={handleNext}
-              onBack={handleBack}
+              portraitPrompt=""
+              isLoading={false}
+              onAccept={handleNext}
+              onRegenerate={() => {}}
             />
           )}
 
           {currentStep === 4 && (
             <Step4StatAllocation
-              stats={stats}
-              setStats={setStats}
+              currentStats={stats}
               onConfirm={handleComplete}
-              onBack={handleBack}
             />
           )}
         </div>

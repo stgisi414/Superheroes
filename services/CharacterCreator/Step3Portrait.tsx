@@ -34,10 +34,10 @@ const Step3Portrait: React.FC<Step3PortraitProps> = ({
       )}
 
       <div className="flex flex-col sm:flex-row justify-center gap-4 mt-4">
-        <Button onClick={onAccept} disabled={isLoading || !portraitUrl} fullWidth smFullWidth={false}>
+        <Button onClick={onAccept} disabled={isLoading || !portraitUrl} fullWidth>
           Accept Portrait
         </Button>
-        <Button onClick={onRegenerate} variant="secondary" disabled={isLoading} fullWidth smFullWidth={false}>
+        <Button onClick={onRegenerate} variant="secondary" disabled={isLoading} fullWidth>
           {isLoading ? 'Regenerating...' : 'Regenerate Portrait'}
         </Button>
       </div>

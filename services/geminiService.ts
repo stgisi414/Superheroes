@@ -40,30 +40,6 @@ class GeminiService {
     // }
   }
 
-  // Get safety settings with harm content blocking disabled
-  private getSafetySettings() {
-    // Uncomment when using real API:
-    // return [
-    //   {
-    //     category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-    //     threshold: HarmBlockThreshold.BLOCK_NONE,
-    //   },
-    //   {
-    //     category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-    //     threshold: HarmBlockThreshold.BLOCK_NONE,
-    //   },
-    //   {
-    //     category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-    //     threshold: HarmBlockThreshold.BLOCK_NONE,
-    //   },
-    //   {
-    //     category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-    //     threshold: HarmBlockThreshold.BLOCK_NONE,
-    //   },
-    // ];
-    return [];
-  }
-
 
   async generateOriginStory(name: string, concept: string): Promise<string> {
     const prompt = `Generate a brief, compelling origin story (2-3 paragraphs) for a character named "${name}". 

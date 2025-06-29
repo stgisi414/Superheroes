@@ -113,29 +113,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character }) => {
       </div>
 
       {/* Health/Status (if available) */}
-      {character.health !== undefined && (
-        <div className="comic-panel p-4">
-          <div className="text-center mb-3">
-            <span className="font-bangers text-lg bg-red-500 border-2 border-black px-2 py-1 text-white">
-              HEALTH STATUS
-            </span>
-          </div>
-          <div className="bg-white border-3 border-black p-3">
-            <div className="flex items-center justify-between">
-              <span className="font-comic font-bold text-black">❤️ Health</span>
-              <span className="font-bangers text-2xl text-red-600">
-                {character.health}/100
-              </span>
-            </div>
-            <div className="mt-2 bg-gray-300 border-2 border-black h-4 relative">
-              <div 
-                className="bg-red-500 h-full border-r-2 border-black transition-all duration-300"
-                style={{ width: `${character.health || 100}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 };

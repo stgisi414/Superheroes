@@ -26,7 +26,7 @@ const StoryPanel: React.FC<StoryPanelProps> = ({ storyLog, isLoading }) => {
           </div>
         );
       
-      case 'user':
+      case 'system_message':
         return (
           <div key={entry.id} className="speech-bubble ml-auto max-w-xs animate-comic-pop">
             <div className="flex items-center mb-2">
@@ -50,8 +50,8 @@ const StoryPanel: React.FC<StoryPanelProps> = ({ storyLog, isLoading }) => {
               </span>
             </div>
             <img 
-              src={entry.content} 
-              alt="Story scene" 
+              src={entry.url} 
+              alt={entry.alt} 
               className="w-full h-64 object-cover border-4 border-black"
             />
           </div>

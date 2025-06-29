@@ -19,7 +19,7 @@ const Step2OriginStory: React.FC<Step2OriginStoryProps> = ({
 }) => {
   return (
     <div className="text-center space-y-6 flex flex-col items-center justify-center min-h-[300px]">
-      <ScrollableArea className="w-full bg-slate-700/50 p-4 rounded-md story-text-font max-h-60" maxHeight="240px">
+      <ScrollableArea className="w-full bg-slate-800 p-4 rounded-md story-text-font max-h-60" maxHeight="240px">
         {isLoading && !originStory ? (
           <div className="flex justify-center items-center h-full">
             <LoadingSpinner text="Forging your epic origin..." />
@@ -31,10 +31,10 @@ const Step2OriginStory: React.FC<Step2OriginStoryProps> = ({
         )}
       </ScrollableArea>
       <div className="flex flex-col sm:flex-row justify-center gap-4 mt-4">
-        <Button onClick={onAccept} disabled={isLoading || !originStory} fullWidth smFullWidth={false}>
+        <Button onClick={onAccept} disabled={isLoading || !originStory} fullWidth>
           Accept Origin
         </Button>
-        <Button onClick={onRegenerate} variant="secondary" disabled={isLoading} fullWidth smFullWidth={false}>
+        <Button onClick={onRegenerate} variant="secondary" disabled={isLoading} fullWidth>
           {isLoading ? 'Regenerating...' : 'Regenerate Origin'}
         </Button>
       </div>

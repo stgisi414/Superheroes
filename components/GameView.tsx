@@ -26,7 +26,7 @@ const GameView: React.FC<GameViewProps> = ({
   const handleCommandSubmit = async (command: string) => {
     setIsLoading(true);
     const userEntry: StoryLogEntry = { 
-      type: 'user', 
+      type: 'system_message', 
       content: command, 
       id: Date.now().toString() 
     };

@@ -4,9 +4,10 @@ import React from 'react';
 interface LoadingSpinnerProps {
   size?: 'small' | 'medium' | 'large';
   className?: string;
+  text?: string;
 }
 
-const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'medium', className = '' }) => {
+const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'medium', className = '', text = 'LOADING...' }) => {
   const getSizeClasses = () => {
     switch (size) {
       case 'small':
@@ -36,16 +37,9 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'medium', classN
       
       {/* Loading text */}
       <div className="ml-3 font-comic font-bold text-lg animate-pulse">
-        <span className="text-red-500">L</span>
-        <span className="text-yellow-400">O</span>
-        <span className="text-green-400">A</span>
-        <span className="text-blue-500">D</span>
-        <span className="text-purple-500">I</span>
-        <span className="text-pink-500">N</span>
-        <span className="text-orange-500">G</span>
-        <span className="text-red-500">.</span>
-        <span className="text-yellow-400">.</span>
-        <span className="text-green-400">.</span>
+        {text.split('').map((char, index) => (
+          <span key={index} className={`text-${['red-500', 'yellow-400', 'green-400', 'blue-500', 'purple-500', 'pink-500', 'orange-500'][index % 7]}`}>{char}</span>
+        ))}
       </div>
     </div>
   );
