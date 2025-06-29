@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Character, StoryLogEntry, MusicMood, VoiceProfile, GameUpdateChunk, NarrationStoryLogEntry, TextStoryLogEntry } from '../types';
+import { Character, StoryLogEntry, MusicMood, VoiceProfile, GameUpdateChunk, NarrationStoryLogEntry } from '../types';
 import CharacterSheet from '../CharacterSheet';
 import StoryPanel from './StoryPanel';
 import CommandInput from './CommandInput';
@@ -50,8 +50,7 @@ const GameView: React.FC<GameViewProps> = ({
                 return [...prevLog.slice(0, -1), {...lastEntry, content: lastEntry.content + chunk.narrativePart}];
               }
               // Create new text entry
-              const newEntry: TextStoryLogEntry = { type: 'text', content: chunk.narrativePart, id: Date.now().toString() + Math.random(), streamId: chunk.streamId };
-              return [...prevLog, newEntry];
+              return [...prevLog, { type: 'text', content: chunk.narrativePart as string, id: Date.now().toString() + Math.random(), streamId: chunk.streamId }];
             });
           }
 

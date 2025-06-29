@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Character, GameState as AppState, StoryLogEntry, TextStoryLogEntry } from './types';
+import { Character, GameState as AppState, StoryLogEntry } from './types';
 import CharacterCreator from './services/CharacterCreator/CharacterCreator';
 import GameView from './components/GameView';
 import LandingPage from './components/LandingPage';
@@ -60,11 +60,7 @@ const App: React.FC = () => {
               if (lastEntry && lastEntry.type === 'text' && chunk.streamId && lastEntry.streamId === chunk.streamId) {
                 return [...prevLog.slice(0, -1), { ...lastEntry, content: lastEntry.content + chunk.narrativePart }];
               }
-              if (chunk.streamId) {
-                const newEntry: TextStoryLogEntry = { type: 'text', content: chunk.narrativePart, id: Date.now().toString() + Math.random(), streamId: chunk.streamId };
-                return [...prevLog, newEntry];
-              }
-              return prevLog;
+              return [...prevLog, { type: 'text', content: chunk.narrativePart as string, id: Date.now().toString() + Math.random(), streamId: chunk.streamId }];
             });
           }
           if (chunk.updatedCharacter) {
@@ -101,3 +97,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+
