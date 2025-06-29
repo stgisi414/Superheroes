@@ -1,0 +1,146 @@
+ Lyria is a powerful AI model from Google that can generate music in real time, which is what provides the dynamic, atmospheric soundtrack for this game.
+The setup involves a few key steps using the @google/genai SDK and the browser's Web Audio API. Here's a breakdown with code snippets, mostly drawn from the services/musicService.ts and services/musicUtils.ts files in your current app.
+1. Initialize the GenAI Client for Lyria
+First, you need to initialize the GoogleGenAI client. The crucial part for using Lyria is specifying apiVersion: 'v1alpha', as the live music API is currently part of the alpha release channel.
+Generated typescript
+// From: services/musicService.ts
+
+import { GoogleGenAI } from '@google/genai';
+
+let ai: GoogleGenAI;
+
+// ...
+
+// In the connect() function
+ai = new GoogleGenAI({ apiKey: process.env.API_KEY, apiVersion: 'v1alpha' });
+Use code with caution.
+TypeScript
+2. Connect to the Live Music Service
+Next, you establish a persistent connection to the Lyria model. This creates a LiveMusicSession object that you'll use to control the music. You also provide callbacks to handle messages, errors, and disconnections from the server.
+Generated typescript
+// From: services/musicService.ts
+
+// ...
+session = await ai.live.music.connect({
+  model: 'lyria-realtime-exp', // The specific model for real-time music
+  callbacks: {
+    onmessage: handleServerMessage, // A function to process incoming audio
+    onerror: (e: ErrorEvent) => {
+      console.error('Music service connection error:', e);
+    },
+    onclose: (e: CloseEvent) => {
+      console.log('Music service connection closed.');
+    },
+  },
+});
+// ...
+Use code with caution.
+TypeScript
+3. Receive and Process Audio Data
+The onmessage callback you provided (handleServerMessage in this app) is where the magic happens. The server will send messages containing chunks of audio data. Your job is to decode this data and prepare it for playback.
+The audio data arrives as a base64-encoded string representing interleaved 16-bit PCM audio. The Web Audio API needs it in a different format (de-interleaved 32-bit float).
+Generated typescript
+// From: services/musicService.ts
+
+async function handleServerMessage(e: LiveMusicServerMessage) {
+  // Check if the message contains audio chunks
+  if (e.serverContent?.audioChunks !== undefined) {
+    // 1. Decode the base64 string and process the raw audio data
+    const audioBuffer = await decodeAudioData(
+      decode(e.serverContent?.audioChunks[0].data), // `decode` is just `atob`
+      audioContext,
+      48000, // Sample rate for Lyria
+      2      // Number of channels (stereo)
+    );
+
+    // 2. Schedule the audio buffer for playback
+    const source = audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(outputNode); // `outputNode` is a GainNode for volume control
+    source.start(nextStartTime); // Schedule it to play seamlessly
+
+    // 3. Update the start time for the *next* chunk
+    nextStartTime += audioBuffer.duration;
+  }
+}
+Use code with caution.
+TypeScript
+4. Decode the Raw Audio (decodeAudioData)
+This is the most technical part. The decodeAudioData utility function (from services/musicUtils.ts) is responsible for converting the raw audio from Lyria into a format the browser can play.
+It performs two main tasks:
+De-interleaving: It separates the single stream of audio data into left and right channels.
+Normalization: It converts the 16-bit integer samples (ranging from -32768 to 32767) into 32-bit floating-point numbers (ranging from -1.0 to 1.0), which is what the Web Audio API expects.
+Here is a simplified view of that function:
+Generated typescript
+// From: services/musicUtils.ts
+
+export async function decodeAudioData(
+  audioData: string, // The raw binary string after base64 decoding
+  audioContext: AudioContext,
+  sampleRate: number,
+  numChannels: number,
+): Promise<AudioBuffer> {
+
+  // Convert binary string to a 16-bit integer array
+  const pcm16Samples = /* ... logic to create Int16Array ... */;
+  const numFrames = pcm16Samples.length / numChannels;
+
+  // Create an empty AudioBuffer
+  const audioBuffer = audioContext.createBuffer(numChannels, numFrames, sampleRate);
+
+  // De-interleave and normalize the data for each channel
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = audioBuffer.getChannelData(channel);
+    for (let i = 0; i < numFrames; i++) {
+      // Get the sample for this frame and channel
+      const sample = pcm16Samples[i * numChannels + channel];
+      // Normalize to a float between -1.0 and 1.0
+      channelData[i] = sample / 32768.0;
+    }
+  }
+
+  return audioBuffer;
+}
+Use code with caution.
+TypeScript
+5. Control Playback and Prompts
+Once connected, you can control the music generation.
+To start/stop the flow of audio:
+Use the play(), pause(), and stop() methods on the session object. The app wraps these in its own service functions.
+Generated typescript
+// From: services/musicService.ts
+
+export function play() {
+  // ...
+  session?.play();
+  updateState({ playbackState: 'loading' });
+}
+
+export function pause() {
+  // ...
+  session.pause();
+  updateState({ playbackState: 'paused' });
+}
+Use code with caution.
+TypeScript
+To guide the music style:
+You send text prompts to Lyria. The model will then adjust the generated music to match the new prompts.
+Generated typescript
+// From: services/musicService.ts
+
+export async function setPrompts(prompts: string[]) {
+  if (!session) return;
+  
+  // You can even weight prompts to give some more importance than others
+  const weightedPrompts = prompts.map(p => ({ text: p, weight: 1.0 }));
+  
+  await session.setWeightedPrompts({ weightedPrompts });
+}
+Use code with caution.
+TypeScript
+In summary, setting up Lyria is a process of:
+Connecting to the service with a special v1alpha API version.
+Receiving audio data chunks in a callback.
+Decoding and transforming that data into a playable format.
+Scheduling it for seamless playback using the Web Audio API.
+Sending text prompts to control the musical direction.
