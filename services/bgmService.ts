@@ -20,6 +20,7 @@ interface LyraTrack {
 class BGMService {
   private currentAudio: HTMLAudioElement | null = null;
   private currentSection: GameSection | null = null;
+  private masterGain: GainNode | null = null;
 
   constructor() {
     // Set up user interaction detection
@@ -152,33 +153,33 @@ class BGMService {
         await this.audioContext.resume();
       }
       
-      const masterGain = this.audioContext.createGain();
-      masterGain.connect(this.audioContext.destination);
+      this.masterGain = this.audioContext.createGain();
+      this.masterGain.connect(this.audioContext.destination);
       
       // Start with silence and fade in
-      masterGain.gain.setValueAtTime(0, this.audioContext.currentTime);
+      this.masterGain.gain.setValueAtTime(0, this.audioContext.currentTime);
       
       // Generate audio based on mood
       switch (track.mood) {
         case MusicMood.Heroic:
-          this.generateHeroicTheme(masterGain);
+          this.generateHeroicTheme(this.masterGain);
           break;
         case MusicMood.Mysterious:
-          this.generateMysteriousAmbience(masterGain);
+          this.generateMysteriousAmbience(this.masterGain);
           break;
         case MusicMood.Ambient:
-          this.generateAmbientSounds(masterGain);
+          this.generateAmbientSounds(this.masterGain);
           break;
         case MusicMood.Intense:
-          this.generateIntenseMusic(masterGain);
+          this.generateIntenseMusic(this.masterGain);
           break;
         default:
-          this.generateAmbientSounds(masterGain);
+          this.generateAmbientSounds(this.masterGain);
       }
       
       // Fade in to audible volume
-      const targetVolume = track.volume * this.volume * 0.5; // Reduce volume to prevent it being too loud
-      masterGain.gain.linearRampToValueAtTime(targetVolume, this.audioContext.currentTime + 1.5);
+      const targetVolume = track.volume * this.volume;
+      this.masterGain.gain.linearRampToValueAtTime(targetVolume, this.audioContext.currentTime + 1.5);
       
       logger.info('BGM_SERVICE', `Generated ${track.mood} mood audio at volume ${targetVolume}`);
       
@@ -408,6 +409,7 @@ class BGMService {
       this.audioContext.close();
       this.audioContext = null;
     }
+    this.masterGain = null;
     this.isPlaying = false;
   }
 
@@ -417,10 +419,13 @@ class BGMService {
       this.currentAudio.volume = this.volume;
     }
     
-    // Also update Web Audio API volume if context exists
-    if (this.audioContext && this.audioContext.destination) {
-      // Note: We can't directly control destination volume, but this is logged for debugging
-      logger.info('BGM_SERVICE', `Volume set to ${this.volume}`);
+    if (this.masterGain && this.audioContext && this.currentSection) {
+      const track = this.getTrackForSection(this.currentSection);
+      if (track) {
+        const targetVolume = track.volume * this.volume;
+        this.masterGain.gain.linearRampToValueAtTime(targetVolume, this.audioContext.currentTime + 0.1);
+        logger.info('BGM_SERVICE', `Web Audio API volume updated to ${targetVolume}`);
+      }
     }
   }
 
