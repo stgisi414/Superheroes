@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Character, GameState as AppState, StoryLogEntry } from './types';
 import CharacterCreator from './services/CharacterCreator/CharacterCreator';
@@ -41,7 +40,7 @@ const App: React.FC = () => {
     setIsLoading(true);
     const initialEntry: StoryLogEntry = { type: 'text', content: `Welcome, ${newCharacter.name}. Your adventure begins...`, id: Date.now().toString() };
     setStoryLog([initialEntry]);
-    
+
     const gameState: GameState = {
       character: newCharacter,
       // storyLog: [initialEntry]
@@ -99,4 +98,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-

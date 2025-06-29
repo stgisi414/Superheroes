@@ -3,6 +3,7 @@
 // In a real application, this would make actual API calls.
 import { Character, GameUpdateChunk, MusicMood, VoiceProfile, StatName } from '../types';
 import { PLACEHOLDER_IMAGE_DIMENSIONS } from '../constants';
+import { logger, LogCategory, logError, logPerformance } from './logger';
 
 // Import the actual Google Generative AI SDK
 // Uncomment the line below when you want to use real Gemini API calls
@@ -25,13 +26,23 @@ class GeminiService {
   // private genAI: GoogleGenerativeAI; // Uncomment when using real API
 
   constructor() {
+    logger.info(LogCategory.GEMINI, 'Initializing Gemini service');
+    
     // This adheres to the requirement: "The API key must be obtained exclusively from the environment variable process.env.GEMINI_API_KEY"
     // And "Assume this variable is pre-configured, valid, and accessible"
     this.apiKey = process.env.GEMINI_API_KEY || "SIMULATED_GEMINI_API_KEY_DEV_ONLY";
     this.useRealAPI = this.apiKey !== "SIMULATED_GEMINI_API_KEY_DEV_ONLY" && this.apiKey !== "YOUR_GEMINI_API_KEY_PLACEHOLDER";
     
     if (!this.useRealAPI) {
-        console.warn("Using a placeholder API Key for GeminiService. Actual Gemini calls will not be made.");
+        const warningMsg = "GEMINI_API_KEY not found in process.env. Using a placeholder. Real Gemini features will not work.";
+        console.warn(warningMsg);
+        logger.warn(LogCategory.GEMINI, warningMsg, { 
+          foundApiKey: !!process.env.GEMINI_API_KEY,
+          apiKeyLength: this.apiKey?.length,
+          processEnvKeys: Object.keys(process.env).filter(key => key.includes('GEMINI'))
+        });
+    } else {
+        logger.info(LogCategory.GEMINI, 'Real Gemini API key found and configured');
     }
     
     // Uncomment the lines below when you want to use the real Gemini API:
@@ -42,40 +53,57 @@ class GeminiService {
 
 
   async generateOriginStory(name: string, concept: string): Promise<string> {
+    const endTimer = logPerformance(LogCategory.GEMINI, 'Generate origin story');
+    logger.info(LogCategory.GEMINI, 'Starting origin story generation', { name, concept });
+    
     const prompt = `Generate a brief, compelling origin story (2-3 paragraphs) for a character named "${name}". 
     Their core concept is: "${concept}". 
     The story should be engaging and set a clear tone (heroic, tragic, mysterious, etc.) based on the concept.
     It should hint at their powers or defining moment without being overly explicit unless the concept demands it.
     Make it feel like the beginning of an epic saga.`;
 
-    // Use real API if available, otherwise simulate
-    if (this.useRealAPI) {
-      console.log(`[GeminiService] Using real API for generateOriginStory for ${name}: ${concept}`);
-      // Uncomment when using real API:
-      // try {
-      //   const model = this.genAI.getGenerativeModel({ 
-      //     model: "gemini-pro",
-      //     safetySettings: this.getSafetySettings()
-      //   });
-      //   const result = await model.generateContent(prompt);
-      //   const response = await result.response;
-      //   return response.text();
-      // } catch (error) {
-      //   console.error("Error generating origin story:", error);
-      //   // Fallback to simulation if API fails
-      //   return this.simulateOriginStory(name, concept, prompt);
-      // }
-      
-      // For now, still simulate even with real API key until you uncomment the code above
-      return this.simulateOriginStory(name, concept, prompt);
-    } else {
-      console.log(`[GeminiService] Simulating generateOriginStory for ${name}: ${concept}`);
-      return this.simulateOriginStory(name, concept, prompt);
+    logger.debug(LogCategory.GEMINI, 'Generated prompt for origin story', { prompt });
+
+    try {
+      // Use real API if available, otherwise simulate
+      if (this.useRealAPI) {
+        logger.info(LogCategory.GEMINI, 'Using real API for origin story generation', { name, concept });
+        // Uncomment when using real API:
+        // try {
+        //   const model = this.genAI.getGenerativeModel({ 
+        //     model: "gemini-pro",
+        //     safetySettings: this.getSafetySettings()
+        //   });
+        //   const result = await model.generateContent(prompt);
+        //   const response = await result.response;
+        //   return response.text();
+        // } catch (error) {
+        //   logError(LogCategory.GEMINI, "Error generating origin story with real API", error);
+        //   // Fallback to simulation if API fails
+        //   return this.simulateOriginStory(name, concept, prompt);
+        // }
+        
+        // For now, still simulate even with real API key until you uncomment the code above
+        return this.simulateOriginStory(name, concept, prompt);
+      } else {
+        logger.info(LogCategory.GEMINI, 'Using simulation for origin story generation', { name, concept });
+        return this.simulateOriginStory(name, concept, prompt);
+      }
+    } catch (error) {
+      logError(LogCategory.GEMINI, 'Failed to generate origin story', error);
+      throw error;
+    } finally {
+      endTimer();
     }
   }
 
   private async simulateOriginStory(name: string, concept: string, prompt: string): Promise<string> {
-    await delay(1500 + Math.random() * 1000); // Simulate API call latency
+    const endTimer = logPerformance(LogCategory.GEMINI, 'Simulate origin story');
+    logger.debug(LogCategory.GEMINI, 'Starting origin story simulation', { name, concept });
+    
+    const delayTime = 1500 + Math.random() * 1000;
+    logger.debug(LogCategory.GEMINI, `Simulating API delay: ${delayTime.toFixed(0)}ms`);
+    await delay(delayTime);
     
     // Simulated Gemini response
     const generatedStory = `In the neon-drenched alleys of Neo-Veridia, ${name} was once just another face in the crowd. ${concept.toLowerCase().includes('tech') ? 'A brilliant but overlooked engineer,' : 'An ordinary individual with an extraordinary destiny,'} their life took a sharp turn when ${concept.toLowerCase().includes('shadowmancer') ? 'they stumbled upon an ancient tome of forbidden shadow magic in a forgotten library.' : concept.toLowerCase().includes('electricity') ? 'a freak accident involving an experimental energy core bathed them in raw, untamed electrical power.' : 'a mysterious event granted them abilities beyond human comprehension.'}
@@ -84,13 +112,23 @@ class GeminiService {
     
     Now, ${name} walks a path shrouded in ${concept.toLowerCase().includes('mysterious') ? 'mystery and whispers' : 'danger and uncertainty'}, their actions echoing through the city, a legend in the making. Their true journey has only just begun.`;
     
-    console.log("[GeminiService] Simulated prompt for origin story:", prompt);
+    logger.info(LogCategory.GEMINI, 'Origin story simulation completed', { 
+      name, 
+      concept, 
+      storyLength: generatedStory.length,
+      prompt 
+    });
+    
+    endTimer();
     return generatedStory;
   }
 
   async generatePortraitPrompt(name: string, concept: string, originStory: string): Promise<string> {
-    console.log(`[GeminiService] Simulating generatePortraitPrompt for ${name}`);
-    await delay(500 + Math.random() * 500);
+    const endTimer = logPerformance(LogCategory.GEMINI, 'Generate portrait prompt');
+    logger.info(LogCategory.GEMINI, 'Generating portrait prompt', { name, concept });
+    
+    const delayTime = 500 + Math.random() * 500;
+    await delay(delayTime);
 
     const styleKeywords = concept.toLowerCase().includes('tech') ? "cyberpunk, intricate circuits, glowing neon accents" :
                          concept.toLowerCase().includes('shadow') ? "dark fantasy, mysterious, ethereal shadows, hooded figure" :
@@ -99,16 +137,36 @@ class GeminiService {
                          "detailed character art, cinematic lighting";
     
     const prompt = `Detailed character portrait of ${name}. Concept: "${concept}". Key elements from origin: "${originStory.substring(0, 100)}...". Style: ${styleKeywords}, photorealistic details, high fantasy illustration. Focus on the face and upper body, conveying their personality.`;
-    console.log("[GeminiService] Simulated prompt for portrait:", prompt);
+    
+    logger.info(LogCategory.GEMINI, 'Portrait prompt generated', { 
+      name, 
+      styleKeywords, 
+      prompt,
+      originStoryPreview: originStory.substring(0, 100) 
+    });
+    
+    endTimer();
     return prompt;
   }
 
   async generatePortrait(imagePrompt: string): Promise<string> {
-    console.log(`[GeminiService] Simulating generatePortrait with prompt: ${imagePrompt}`);
-    await delay(2000 + Math.random() * 1500); // Simulate image generation time
+    const endTimer = logPerformance(LogCategory.GEMINI, 'Generate portrait image');
+    logger.info(LogCategory.GEMINI, 'Starting portrait image generation', { prompt: imagePrompt });
+    
+    const delayTime = 2000 + Math.random() * 1500;
+    logger.debug(LogCategory.GEMINI, `Simulating image generation delay: ${delayTime.toFixed(0)}ms`);
+    await delay(delayTime);
+    
     // This would be a call to fal.ai or similar. We simulate with Picsum.
-    // const response = await actualImageGenerationAPICall(imagePrompt, 'portrait');
-    return simulatePicsumImage(PLACEHOLDER_IMAGE_DIMENSIONS.portrait.width, PLACEHOLDER_IMAGE_DIMENSIONS.portrait.height);
+    const imageUrl = simulatePicsumImage(PLACEHOLDER_IMAGE_DIMENSIONS.portrait.width, PLACEHOLDER_IMAGE_DIMENSIONS.portrait.height);
+    
+    logger.info(LogCategory.GEMINI, 'Portrait image generated', { 
+      imageUrl, 
+      dimensions: PLACEHOLDER_IMAGE_DIMENSIONS.portrait 
+    });
+    
+    endTimer();
+    return imageUrl;
   }
 
   async generateIllustration(imagePrompt: string, style: string): Promise<string> {
