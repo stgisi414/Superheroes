@@ -5,6 +5,7 @@ import GameView from './components/GameView';
 import LandingPage from './components/LandingPage';
 import { geminiService } from './services/geminiService';
 import { loadGame, saveGame, GameState } from './services/localStorageService';
+import { logger } from './services/logger';
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.Landing);
@@ -21,6 +22,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleStartNewGame = () => {
+    logger.info('APP_STATE', 'Transitioning to Character Creation');
     setAppState(AppState.CharacterCreation);
   };
 

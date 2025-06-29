@@ -1,5 +1,6 @@
 import React from 'react';
 import SuperheroLogo from './SuperheroLogo';
+import { logger } from '../services/logger';
 
 interface LandingPageProps {
   onStartNewGame: () => void;
@@ -37,7 +38,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartNewGame, onLoadGame, h
 
         <div className="space-y-4">
           <button
-            onClick={onStartNewGame}
+            onClick={() => {
+              logger.info('USER_ACTION', 'Start New Adventure button clicked');
+              onStartNewGame();
+            }}
             className="comic-button w-full py-4 px-6 text-black font-bold shadow-lg hover:shadow-xl transition-all"
           >
             🌟 START NEW ADVENTURE! 🌟
