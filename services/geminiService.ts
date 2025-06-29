@@ -6,9 +6,9 @@ import { Character, CharacterStats, GameUpdateChunk, MusicMood, VoiceProfile, St
 import { GEMINI_TEXT_MODEL, PLACEHOLDER_IMAGE_DIMENSIONS } from '../constants';
 
 // IMPORTANT: This service SIMULATES Gemini calls. It does not use the actual @google/genai SDK for these simulations.
-// The API key is assumed to be available via process.env.API_KEY as per requirements.
-// const API_KEY = process.env.API_KEY; 
-// const ai = new GoogleGenAI({apiKey: API_KEY}); // This would be the actual initialization
+// The API key is assumed to be available via process.env.GEMINI_API_KEY as per requirements.
+// const GEMINI_API_KEY = process.env.GEMINI_API_KEY; 
+// const ai = new GoogleGenAI({apiKey: GEMINI_API_KEY}); // This would be the actual initialization
 
 // --- Simulation Helpers ---
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -22,10 +22,10 @@ class GeminiService {
   private apiKey: string;
 
   constructor() {
-    // This adheres to the requirement: "The API key must be obtained exclusively from the environment variable process.env.API_KEY"
+    // This adheres to the requirement: "The API key must be obtained exclusively from the environment variable process.env.GEMINI_API_KEY"
     // And "Assume this variable is pre-configured, valid, and accessible"
-    this.apiKey = process.env.API_KEY || "SIMULATED_API_KEY_DEV_ONLY";
-    if (this.apiKey === "SIMULATED_API_KEY_DEV_ONLY" || this.apiKey === "YOUR_GEMINI_API_KEY_PLACEHOLDER") {
+    this.apiKey = process.env.GEMINI_API_KEY || "SIMULATED_GEMINI_API_KEY_DEV_ONLY";
+    if (this.apiKey === "SIMULATED_GEMINI_API_KEY_DEV_ONLY" || this.apiKey === "YOUR_GEMINI_API_KEY_PLACEHOLDER") {
         console.warn("Using a placeholder API Key for GeminiService. Actual Gemini calls will not be made.");
     }
     // Actual GoogleGenAI instance would be created here if not just simulating:
