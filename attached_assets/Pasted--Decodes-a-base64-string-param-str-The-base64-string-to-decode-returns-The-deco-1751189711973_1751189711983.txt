@@ -1,0 +1,60 @@
+
+/**
+ * Decodes a base64 string.
+ * @param str The base64 string to decode.
+ * @returns The decoded string.
+ */
+export function decode(str: string) {
+  return atob(str);
+}
+
+/**
+ * Decodes audio data into an AudioBuffer.
+ * The incoming data from the Lyria model is interleaved 16-bit PCM.
+ * This function de-interleaves it and converts it to 32-bit float,
+ * which is what the Web Audio API requires.
+ * @param audioData The decoded audio data string (binary string).
+ * @param audioContext The AudioContext to use.
+ * @param sampleRate The sample rate of the audio.
+ * @param numChannels The number of channels in the audio.
+ * @returns A promise that resolves with the decoded AudioBuffer.
+ */
+export async function decodeAudioData(
+  audioData: string,
+  audioContext: AudioContext,
+  sampleRate: number,
+  numChannels: number,
+): Promise<AudioBuffer> {
+  // 1. Convert the binary string from atob() into a byte buffer (ArrayBuffer).
+  const pcm16Data = new ArrayBuffer(audioData.length);
+  const pcm16DataView = new Uint8Array(pcm16Data);
+  for (let i = 0; i < audioData.length; i++) {
+    pcm16DataView[i] = audioData.charCodeAt(i);
+  }
+
+  // 2. Create a view of the buffer as 16-bit signed integers.
+  const pcm16Samples = new Int16Array(pcm16Data);
+
+  // 3. The number of frames is the total number of samples divided by the number of channels.
+  const numFrames = pcm16Samples.length / numChannels;
+
+  // 4. Create an empty AudioBuffer with the correct parameters.
+  const audioBuffer = audioContext.createBuffer(
+    numChannels,
+    numFrames,
+    sampleRate,
+  );
+
+  // 5. De-interleave and normalize the 16-bit PCM data into 32-bit float data for each channel.
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = audioBuffer.getChannelData(channel);
+    for (let i = 0; i < numFrames; i++) {
+      // Get the interleaved sample for this channel.
+      const sample = pcm16Samples[i * numChannels + channel];
+      // Normalize from the 16-bit integer range [-32768, 32767] to the float range [-1.0, 1.0] and store it.
+      channelData[i] = sample / 32768.0;
+    }
+  }
+
+  return audioBuffer;
+}

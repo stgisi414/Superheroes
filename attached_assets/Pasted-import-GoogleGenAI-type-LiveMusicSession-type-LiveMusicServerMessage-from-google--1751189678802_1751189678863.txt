@@ -1,0 +1,221 @@
+import {
+  GoogleGenAI,
+  type LiveMusicSession,
+  type LiveMusicServerMessage,
+} from '@google/genai';
+import { decode, decodeAudioData } from './musicUtils';
+
+type PlaybackState = 'stopped' | 'playing' | 'loading' | 'paused';
+export interface MusicState {
+  playbackState: PlaybackState;
+  isMuted: boolean;
+}
+type StateListener = (newState: MusicState) => void;
+
+let ai: GoogleGenAI;
+const model = 'lyria-realtime-exp';
+const sampleRate = 48000;
+const bufferTime = 2; // Audio buffer in seconds
+
+let session: LiveMusicSession | null = null;
+let audioContext: AudioContext;
+let outputNode: GainNode;
+let nextStartTime = 0;
+let connectionError = false;
+
+let state: MusicState = {
+  playbackState: 'stopped',
+  isMuted: false,
+};
+const listeners: Set<StateListener> = new Set();
+
+function updateState(newState: Partial<MusicState>) {
+  state = { ...state, ...newState };
+  listeners.forEach((listener) => listener(state));
+}
+
+function initAudioContext() {
+  if (!audioContext || audioContext.state === 'closed') {
+    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+      sampleRate,
+    });
+    outputNode = audioContext.createGain();
+    outputNode.connect(audioContext.destination);
+    // Ensure outputNode gain reflects initial mute state when context is created
+    outputNode.gain.setValueAtTime(state.isMuted ? 0 : 1, audioContext.currentTime);
+  }
+}
+
+async function handleServerMessage(e: LiveMusicServerMessage) {
+  console.log('Received message from the music server:', e);
+  if (e.setupComplete) {
+    connectionError = false;
+  }
+  if (e.serverContent?.audioChunks !== undefined) {
+    if (state.playbackState === 'paused' || state.playbackState === 'stopped') return;
+    
+    // Check for filtered prompts to provide feedback
+    if (e.filteredPrompt) {
+        console.warn(`Prompt "${e.filteredPrompt.text}" was filtered because: ${e.filteredPrompt.filteredReason}`);
+    }
+
+    const audioBuffer = await decodeAudioData(
+      decode(e.serverContent?.audioChunks[0].data),
+      audioContext,
+      sampleRate,
+      2
+    );
+    const source = audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(outputNode);
+
+    // If starting fresh or after a reset (underrun)
+    if (nextStartTime === 0 || nextStartTime < audioContext.currentTime) {
+      // This inner block is for underruns. It should not trigger on the first chunk (when nextStartTime is 0).
+      if (nextStartTime > 0 && nextStartTime < audioContext.currentTime) {
+        console.warn('Audio buffer underrun detected. Re-synchronizing audio playback.');
+        updateState({ playbackState: 'loading' }); // Set to loading to indicate re-buffering
+        
+        // Stop any current playback by recreating the output node to flush the pipeline.
+        // This avoids the error from calling .stop() on an unstarted source.
+        outputNode.disconnect();
+        outputNode = audioContext.createGain();
+        outputNode.connect(audioContext.destination);
+        outputNode.gain.setValueAtTime(state.isMuted ? 0 : 1, audioContext.currentTime);
+      }
+      
+      // Set a new start time, adding buffer time. This happens for the first chunk and after an underrun.
+      nextStartTime = audioContext.currentTime + bufferTime;
+      
+      // Transition to 'playing' after the buffer time has passed.
+      setTimeout(() => {
+        if (state.playbackState === 'loading') {
+          updateState({ playbackState: 'playing' });
+        }
+      }, bufferTime * 1000);
+    }
+    
+    source.start(nextStartTime);
+    nextStartTime += audioBuffer.duration;
+  }
+}
+
+export async function connect() {
+  if (typeof process === 'undefined' || !process.env.API_KEY) {
+    console.error("API_KEY environment variable not set. Music service will be unavailable.");
+    connectionError = true;
+    return;
+  }
+  if (session) return; // Already connected
+
+  initAudioContext();
+  ai = new GoogleGenAI({ apiKey: process.env.API_KEY, apiVersion: 'v1alpha' });
+
+  try {
+    session = await ai.live.music.connect({
+      model,
+      callbacks: {
+        onmessage: handleServerMessage,
+        onerror: (e: ErrorEvent) => {
+          console.error('Music service connection error:', e);
+          connectionError = true;
+          stop(); // Call stop to clean up state
+          // Consider showing a UI message to the user about the connection error
+        },
+        onclose: (e: CloseEvent) => {
+          console.log('Music service connection closed.');
+          connectionError = true;
+          stop(); // Call stop to clean up state
+          // Consider showing a UI message to the user about the connection error
+        },
+      },
+    });
+    connectionError = false;
+    console.log("Successfully connected to music service.");
+  } catch(e) {
+    console.error("Failed to connect to music service", e);
+    connectionError = true;
+    updateState({ playbackState: 'stopped' }); // Ensure state reflects connection failure
+    // Inform user of connection failure if necessary
+  }
+}
+
+export async function setPrompts(prompts: string[]) {
+  if (!session || connectionError) {
+    console.warn("Attempted to set prompts without an active music session or while in connection error state.");
+    return;
+  }
+  const weightedPrompts = prompts.map(p => ({ text: p, weight: 1.0 }));
+  try {
+    await session.setWeightedPrompts({ weightedPrompts });
+  } catch (e: any) {
+    console.error("Failed to set music prompts:", e.message);
+    pause(); // Pause if prompts fail to set, as the music might become irrelevant
+    // You might want to display a message to the user if prompts can't be set
+  }
+}
+
+export function play() {
+  if (!session || state.playbackState === 'playing' || state.playbackState === 'loading') return;
+  
+  if (connectionError) {
+      console.log("Connection error detected, attempting to reconnect...");
+      connect(); // Try to reconnect if there was a previous error
+      return; // Wait for reconnection before playing
+  }
+
+  initAudioContext();
+  audioContext.resume(); // Ensure audio context is resumed after user interaction
+  session?.play();
+  // Set gain immediately based on mute state
+  outputNode.gain.setValueAtTime(state.isMuted ? 0 : 1, audioContext.currentTime);
+
+  updateState({ playbackState: 'loading' }); // Always go through loading state when playing
+}
+
+export function pause() {
+  if (!session || state.playbackState === 'paused' || state.playbackState === 'stopped') return;
+  session.pause();
+  nextStartTime = 0; // Reset nextStartTime on pause
+  // Fade out audio to prevent sudden cut-off
+  outputNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.1);
+  setTimeout(() => {
+    updateState({ playbackState: 'paused' });
+    // Reset gain to 1 for next play, but only after fade out is complete
+    outputNode.gain.setValueAtTime(1, audioContext.currentTime); 
+  }, 100); // Match fade out time
+}
+
+export function stop() {
+  if (!session) return;
+  session.stop();
+  nextStartTime = 0; // Reset nextStartTime on stop
+  // Fade out audio to prevent sudden cut-off
+  outputNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.1);
+  setTimeout(() => {
+    updateState({ playbackState: 'stopped' });
+    // Reset gain to 1 for next play, but only after fade out is complete
+    outputNode.gain.setValueAtTime(1, audioContext.currentTime);
+  }, 100); // Match fade out time
+}
+
+export function toggleMute() {
+    if (!audioContext || !outputNode) return; // Ensure audioContext and outputNode are initialized
+    const newMutedState = !state.isMuted;
+    // Use linearRampToValueAtTime for a smoother mute/unmute transition
+    outputNode.gain.linearRampToValueAtTime(newMutedState ? 0 : 1, audioContext.currentTime + 0.05); // Short transition
+    updateState({ isMuted: newMutedState });
+}
+
+export function addStateListener(listener: StateListener) {
+  listeners.add(listener);
+  listener(state); // Immediately call with current state
+}
+
+export function removeStateListener(listener: StateListener) {
+  listeners.delete(listener);
+}
+
+export function getIsMuted() {
+    return state.isMuted;
+}
