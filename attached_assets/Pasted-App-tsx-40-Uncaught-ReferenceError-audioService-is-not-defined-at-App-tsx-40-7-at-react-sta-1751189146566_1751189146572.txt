@@ -1,0 +1,91 @@
+App.tsx:40 Uncaught ReferenceError: audioService is not defined
+    at App.tsx:40:7
+    at react-stack-bottom-frame (react-dom_client.js?v=891a6464:17482:13)
+    at runWithFiberInDEV (react-dom_client.js?v=891a6464:1483:72)
+    at commitHookEffectListUnmount (react-dom_client.js?v=891a6464:8500:117)
+    at commitHookPassiveUnmountEffects (react-dom_client.js?v=891a6464:8519:60)
+    at disconnectPassiveEffect (react-dom_client.js?v=891a6464:10208:13)
+    at recursivelyTraverseDisconnectPassiveEffects (react-dom_client.js?v=891a6464:10201:11)
+    at disconnectPassiveEffect (react-dom_client.js?v=891a6464:10220:13)
+    at doubleInvokeEffectsOnFiber (react-dom_client.js?v=891a6464:11459:78)
+    at runWithFiberInDEV (react-dom_client.js?v=891a6464:1483:72)
+(anonymous) @ App.tsx:40
+react-stack-bottom-frame @ react-dom_client.js?v=891a6464:17482
+runWithFiberInDEV @ react-dom_client.js?v=891a6464:1483
+commitHookEffectListUnmount @ react-dom_client.js?v=891a6464:8500
+commitHookPassiveUnmountEffects @ react-dom_client.js?v=891a6464:8519
+disconnectPassiveEffect @ react-dom_client.js?v=891a6464:10208
+recursivelyTraverseDisconnectPassiveEffects @ react-dom_client.js?v=891a6464:10201
+disconnectPassiveEffect @ react-dom_client.js?v=891a6464:10220
+doubleInvokeEffectsOnFiber @ react-dom_client.js?v=891a6464:11459
+runWithFiberInDEV @ react-dom_client.js?v=891a6464:1483
+recursivelyTraverseAndDoubleInvokeEffectsInDEV @ react-dom_client.js?v=891a6464:11430
+commitDoubleInvokeEffectsInDEV @ react-dom_client.js?v=891a6464:11467
+flushPassiveEffects @ react-dom_client.js?v=891a6464:11307
+(anonymous) @ react-dom_client.js?v=891a6464:11058
+performWorkUntilDeadline @ react-dom_client.js?v=891a6464:34
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=891a6464:248
+(anonymous) @ index.tsx:14Understand this error
+index.tsx:14 An error occurred in the <App> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+defaultOnUncaughtError @ react-dom_client.js?v=891a6464:6227
+logUncaughtError @ react-dom_client.js?v=891a6464:6281
+runWithFiberInDEV @ react-dom_client.js?v=891a6464:1483
+lane.callback @ react-dom_client.js?v=891a6464:6309
+callCallback @ react-dom_client.js?v=891a6464:4095
+commitCallbacks @ react-dom_client.js?v=891a6464:4107
+runWithFiberInDEV @ react-dom_client.js?v=891a6464:1485
+commitLayoutEffectOnFiber @ react-dom_client.js?v=891a6464:9027
+flushLayoutEffects @ react-dom_client.js?v=891a6464:11172
+commitRoot @ react-dom_client.js?v=891a6464:11078
+commitRootWhenReady @ react-dom_client.js?v=891a6464:10510
+performWorkOnRoot @ react-dom_client.js?v=891a6464:10455
+performSyncWorkOnRoot @ react-dom_client.js?v=891a6464:11633
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=891a6464:11534
+flushPassiveEffects @ react-dom_client.js?v=891a6464:11309
+(anonymous) @ react-dom_client.js?v=891a6464:11058
+performWorkUntilDeadline @ react-dom_client.js?v=891a6464:34
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=891a6464:248
+(anonymous) @ index.tsx:14Understand this warning
+App.tsx:40 Uncaught ReferenceError: audioService is not defined
+    at App.tsx:40:7
+    at react-stack-bottom-frame (react-dom_client.js?v=891a6464:17482:13)
+    at runWithFiberInDEV (react-dom_client.js?v=891a6464:1483:72)
+    at commitHookEffectListUnmount (react-dom_client.js?v=891a6464:8500:117)
+    at commitHookPassiveUnmountEffects (react-dom_client.js?v=891a6464:8519:60)
+    at commitPassiveUnmountEffectsInsideOfDeletedTree_begin (react-dom_client.js?v=891a6464:10230:15)
+    at recursivelyTraversePassiveUnmountEffects (react-dom_client.js?v=891a6464:10145:15)
+    at commitPassiveUnmountOnFiber (react-dom_client.js?v=891a6464:10170:13)
+    at flushPassiveEffects (react-dom_client.js?v=891a6464:11299:11)
+    at flushPendingEffects (react-dom_client.js?v=891a6464:11274:16)
+(anonymous) @ App.tsx:40
+react-stack-bottom-frame @ react-dom_client.js?v=891a6464:17482
+runWithFiberInDEV @ react-dom_client.js?v=891a6464:1483
+commitHookEffectListUnmount @ react-dom_client.js?v=891a6464:8500
+commitHookPassiveUnmountEffects @ react-dom_client.js?v=891a6464:8519
+commitPassiveUnmountEffectsInsideOfDeletedTree_begin @ react-dom_client.js?v=891a6464:10230
+recursivelyTraversePassiveUnmountEffects @ react-dom_client.js?v=891a6464:10145
+commitPassiveUnmountOnFiber @ react-dom_client.js?v=891a6464:10170
+flushPassiveEffects @ react-dom_client.js?v=891a6464:11299
+flushPendingEffects @ react-dom_client.js?v=891a6464:11274
+flushSpawnedWork @ react-dom_client.js?v=891a6464:11248
+commitRoot @ react-dom_client.js?v=891a6464:11079
+commitRootWhenReady @ react-dom_client.js?v=891a6464:10510
+performWorkOnRoot @ react-dom_client.js?v=891a6464:10455
+performSyncWorkOnRoot @ react-dom_client.js?v=891a6464:11633
+flushSyncWorkAcrossRoots_impl @ react-dom_client.js?v=891a6464:11534
+flushPassiveEffects @ react-dom_client.js?v=891a6464:11309
+(anonymous) @ react-dom_client.js?v=891a6464:11058
+performWorkUntilDeadline @ react-dom_client.js?v=891a6464:34
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=891a6464:248
+(anonymous) @ index.tsx:14Understand this error
+index.tsx:14 An error occurred in the <App> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
