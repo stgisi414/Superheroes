@@ -1,5 +1,4 @@
 
-// Integrates with Lyria for real-time music generation and Google Cloud TTS for voice synthesis.
 import { MusicMood, VoiceProfile } from '../types';
 import { bgmService } from './bgmService';
 import { lyriaService } from './lyriaService';
@@ -7,6 +6,7 @@ import { logger, LogCategory, logError } from './logger';
 
 class AudioService {
   private isLyriaEnabled: boolean = false;
+  private currentTTSAudio: HTMLAudioElement | null = null;
 
   async initialize(): Promise<void> {
     try {
@@ -38,6 +38,12 @@ class AudioService {
       // Fallback to traditional BGM service
       await bgmService.playForMood(mood);
     }
+  }
+
+  playBackgroundMusic(mood: MusicMood): void {
+    // Delegate mood transitions to BGM service
+    console.log(`[AudioService] Requesting mood transition to: ${mood}`);
+    bgmService.transitionToMood(mood);
   }
 
   async stopMusic(): Promise<void> {
@@ -81,26 +87,6 @@ class AudioService {
                        voice === VoiceProfile.CalmFemale ? 1.2 : 1.0;
       speechSynthesis.speak(utterance);
     }
-  }
-
-  async shutdown(): Promise<void> {
-    if (this.isLyriaEnabled) {
-      await lyriaService.disconnect();
-    }
-    await bgmService.stop();
-    logger.info(LogCategory.AUDIO, 'Audio service shut down');
-  }
-}
-
-export const audioService = new AudioService();
-
-class AudioService {
-  private currentTTSAudio: HTMLAudioElement | null = null;
-
-  playBackgroundMusic(mood: MusicMood): void {
-    // Delegate mood transitions to BGM service
-    console.log(`[AudioService] Requesting mood transition to: ${mood}`);
-    bgmService.transitionToMood(mood);
   }
 
   async speakText(text: string, voiceProfile: VoiceProfile): Promise<HTMLAudioElement> {
@@ -190,6 +176,15 @@ class AudioService {
     }
     console.log("[AudioService] All TTS stopped.");
   }
+
+  async shutdown(): Promise<void> {
+    if (this.isLyriaEnabled) {
+      await lyriaService.disconnect();
+    }
+    await bgmService.stop();
+    this.stopAllTTS();
+    logger.info(LogCategory.AUDIO, 'Audio service shut down');
+  }
 }
 
 // Ensure voices are loaded for SpeechSynthesis
@@ -199,6 +194,4 @@ if ('speechSynthesis' in window) {
   };
 }
 
-
 export const audioService = new AudioService();
-    
