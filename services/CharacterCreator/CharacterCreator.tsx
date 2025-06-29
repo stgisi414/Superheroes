@@ -147,14 +147,34 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
   };
 
   const handleRegenerateOrigin = async () => {
-    if (!characterName || !characterConcept) return;
+    if (!characterName || !characterConcept) {
+      logger.warn('CHARACTER_CREATION', 'Cannot regenerate origin: missing name or concept', {
+        hasName: !!characterName,
+        hasConcept: !!characterConcept
+      });
+      return;
+    }
+
+    logger.info('CHARACTER_CREATION', 'Starting origin story regeneration', {
+      characterName,
+      characterConcept,
+      creativityLevel
+    });
 
     setIsGeneratingOrigin(true);
+    
+    // Clear the current origin story to force a UI update
+    setOriginStory('');
+    
     try {
       const generatedStory = await geminiService.generateOriginStory(characterName, characterConcept, creativityLevel);
+      logger.info('CHARACTER_CREATION', 'Origin story regeneration completed', {
+        storyLength: generatedStory.length,
+        storyPreview: generatedStory.substring(0, 100)
+      });
       setOriginStory(generatedStory);
     } catch (error) {
-      console.error('Error generating origin story:', error);
+      logger.error('CHARACTER_CREATION', 'Error during origin story regeneration', error);
       setOriginStory('Unable to generate origin story. Please try again.');
     } finally {
       setIsGeneratingOrigin(false);
