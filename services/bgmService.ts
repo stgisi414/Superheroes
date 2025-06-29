@@ -192,78 +192,76 @@ class BGMService {
   private generateHeroicTheme(gainNode: GainNode): void {
     if (!this.audioContext) return;
     
-    // Create a more complex heroic theme with bass and melody
     const now = this.audioContext.currentTime;
     
-    // Bass line - root notes
-    const bassFreq = 130.81; // C3
-    const bassOsc = this.audioContext.createOscillator();
-    const bassGain = this.audioContext.createGain();
+    // Create a smooth ambient heroic pad instead of harsh oscillators
+    const frequencies = [130.81, 164.81, 196.00, 261.63]; // C3-E3-G3-C4 major chord
     
-    bassOsc.connect(bassGain);
-    bassGain.connect(gainNode);
-    bassOsc.frequency.setValueAtTime(bassFreq, now);
-    bassOsc.type = 'sine';
-    bassGain.gain.setValueAtTime(0.4, now);
-    bassOsc.start();
-    
-    // Heroic chord progression - major chords
-    const chordFreqs = [261.63, 329.63, 392.00, 523.25]; // C4-E4-G4-C5
-    chordFreqs.forEach((freq, index) => {
+    frequencies.forEach((freq, index) => {
       const oscillator = this.audioContext!.createOscillator();
       const oscGain = this.audioContext!.createGain();
+      const filter = this.audioContext!.createBiquadFilter();
       
-      oscillator.connect(oscGain);
+      oscillator.connect(filter);
+      filter.connect(oscGain);
       oscGain.connect(gainNode);
       
       oscillator.frequency.setValueAtTime(freq, now);
-      oscillator.type = 'triangle';
-      oscGain.gain.setValueAtTime(0.15, now);
+      oscillator.type = 'sine'; // Smoother sine waves
       
-      // Add slight detuning for richness
-      oscillator.detune.setValueAtTime((index - 2) * 2, now);
+      // Low-pass filter to soften the sound
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(800, now);
+      filter.Q.setValueAtTime(1, now);
+      
+      oscGain.gain.setValueAtTime(0, now);
+      oscGain.gain.linearRampToValueAtTime(0.08, now + 2); // Slow fade in
+      
+      // Add very subtle detuning
+      oscillator.detune.setValueAtTime((index - 1.5) * 1, now);
       
       oscillator.start();
     });
-    
-    // Add a simple melody line
-    const melodyOsc = this.audioContext.createOscillator();
-    const melodyGain = this.audioContext.createGain();
-    
-    melodyOsc.connect(melodyGain);
-    melodyGain.connect(gainNode);
-    melodyOsc.type = 'sawtooth';
-    melodyGain.gain.setValueAtTime(0.1, now);
-    
-    // Simple heroic melody pattern
-    melodyOsc.frequency.setValueAtTime(523.25, now); // C5
-    melodyOsc.frequency.setValueAtTime(659.25, now + 0.5); // E5
-    melodyOsc.frequency.setValueAtTime(783.99, now + 1.0); // G5
-    melodyOsc.frequency.setValueAtTime(1046.50, now + 1.5); // C6
-    
-    melodyOsc.start();
   }
 
   private generateMysteriousAmbience(gainNode: GainNode): void {
     if (!this.audioContext) return;
     
-    // Low, haunting tones with slight modulation
-    const oscillator = this.audioContext.createOscillator();
-    const lfo = this.audioContext.createOscillator();
-    const lfoGain = this.audioContext.createGain();
+    const now = this.audioContext.currentTime;
     
-    oscillator.connect(gainNode);
-    lfo.connect(lfoGain);
-    lfoGain.connect(oscillator.frequency);
+    // Create layered mysterious drones
+    const frequencies = [55, 82.5, 110]; // A1-E2-A2
     
-    oscillator.frequency.setValueAtTime(110, this.audioContext.currentTime); // Low A
-    oscillator.type = 'sine';
-    
-    lfo.frequency.setValueAtTime(0.5, this.audioContext.currentTime);
-    lfoGain.gain.setValueAtTime(20, this.audioContext.currentTime);
-    
-    oscillator.start();
-    lfo.start();
+    frequencies.forEach((freq, index) => {
+      const oscillator = this.audioContext!.createOscillator();
+      const oscGain = this.audioContext!.createGain();
+      const filter = this.audioContext!.createBiquadFilter();
+      const lfo = this.audioContext!.createOscillator();
+      const lfoGain = this.audioContext!.createGain();
+      
+      // Set up gentle LFO modulation
+      lfo.connect(lfoGain);
+      lfoGain.connect(filter.frequency);
+      lfo.frequency.setValueAtTime(0.1 + index * 0.03, now);
+      lfoGain.gain.setValueAtTime(50, now);
+      
+      oscillator.connect(filter);
+      filter.connect(oscGain);
+      oscGain.connect(gainNode);
+      
+      oscillator.frequency.setValueAtTime(freq, now);
+      oscillator.type = 'sine';
+      
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(300 + index * 100, now);
+      filter.Q.setValueAtTime(2, now);
+      
+      oscGain.gain.setValueAtTime(0, now);
+      oscGain.gain.linearRampToValueAtTime(0.06, now + 3); // Very slow fade in
+      
+      oscillator.start();
+      lfo.start();
+    });
   }
 
   private generateAmbientSounds(gainNode: GainNode): void {
@@ -324,18 +322,32 @@ class BGMService {
   private generateIntenseMusic(gainNode: GainNode): void {
     if (!this.audioContext) return;
     
-    // Fast, driving rhythm with minor tonality
-    const frequencies = [146.83, 174.61, 220]; // D-F-A minor chord
+    const now = this.audioContext.currentTime;
+    
+    // Create intense but smooth minor chord progression
+    const frequencies = [146.83, 174.61, 220, 293.66]; // D-F-A-D minor chord
+    
     frequencies.forEach((freq, index) => {
       const oscillator = this.audioContext!.createOscillator();
       const oscGain = this.audioContext!.createGain();
+      const filter = this.audioContext!.createBiquadFilter();
       
-      oscillator.connect(oscGain);
+      oscillator.connect(filter);
+      filter.connect(oscGain);
       oscGain.connect(gainNode);
       
-      oscillator.frequency.setValueAtTime(freq, this.audioContext!.currentTime);
-      oscillator.type = 'sawtooth';
-      oscGain.gain.setValueAtTime(0.4 / frequencies.length, this.audioContext!.currentTime);
+      oscillator.frequency.setValueAtTime(freq, now);
+      oscillator.type = 'sine'; // Smoother than sawtooth
+      
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(1200, now);
+      filter.Q.setValueAtTime(1.5, now);
+      
+      oscGain.gain.setValueAtTime(0, now);
+      oscGain.gain.linearRampToValueAtTime(0.1, now + 1.5);
+      
+      // Add subtle detuning for richness
+      oscillator.detune.setValueAtTime((index - 1.5) * 2, now);
       
       oscillator.start();
     });
@@ -481,6 +493,34 @@ class BGMService {
       logger.info('BGM_SERVICE', 'Retrying audio playback after user interaction');
       await this.playForSection(this.currentSection);
     }
+  }
+
+  private isMuted: boolean = false;
+
+  async toggleMute(): Promise<void> {
+    this.isMuted = !this.isMuted;
+    
+    if (this.masterGain && this.audioContext) {
+      if (this.isMuted) {
+        this.masterGain.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.1);
+        logger.info('BGM_SERVICE', 'Audio muted');
+      } else {
+        const track = this.currentSection ? this.getTrackForSection(this.currentSection) : null;
+        if (track) {
+          const targetVolume = Math.min(track.volume + (this.volume * 0.3), 1.0);
+          this.masterGain.gain.linearRampToValueAtTime(targetVolume, this.audioContext.currentTime + 0.1);
+          logger.info('BGM_SERVICE', 'Audio unmuted');
+        }
+      }
+    }
+  }
+
+  isMutedState(): boolean {
+    return this.isMuted;
+  }
+
+  getVolume(): number {
+    return this.volume;
   }
 }
 

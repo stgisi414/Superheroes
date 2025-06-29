@@ -8,6 +8,7 @@ import { loadGame, saveGame, GameState } from './services/localStorageService';
 import { logger } from './services/logger';
 import { bgmService } from './services/bgmService';
 import { audioService } from './services/audioService'; // Added missing import
+import BGMControl from './components/BGMControl';
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.Landing);
@@ -134,15 +135,26 @@ const App: React.FC = () => {
   }, []);
 
   if (appState === AppState.Landing) {
-    return <LandingPage onStartNewGame={handleStartNewGame} onLoadGame={handleLoadGame} hasSavedGame={hasSavedGame} />;
+    return (
+      <div className="relative">
+        <BGMControl />
+        <LandingPage onStartNewGame={handleStartNewGame} onLoadGame={handleLoadGame} hasSavedGame={hasSavedGame} />
+      </div>
+    );
   }
 
   if (appState === AppState.CharacterCreation || !character) {
-    return <CharacterCreator onCharacterCreated={handleCharacterCreated} />;
+    return (
+      <div className="relative">
+        <BGMControl />
+        <CharacterCreator onCharacterCreated={handleCharacterCreated} />
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-red-600 halftone-bg">
+      <BGMControl />
       <GameView
         character={character}
         setCharacter={setCharacter}
