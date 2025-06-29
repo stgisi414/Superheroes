@@ -270,7 +270,7 @@
     if (typeof process === 'undefined') {
       window.process = { env: {} };
     }
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "undefined") {
       // THIS IS FOR DEVELOPMENT/DEMO PURPOSES ONLY.
       // In a real application, the GEMINI_API_KEY MUST be set in the environment.
       // Do not commit actual API keys to your repository.
