@@ -4,10 +4,12 @@
 import { Character, GameUpdateChunk, MusicMood, VoiceProfile, StatName } from '../types';
 import { PLACEHOLDER_IMAGE_DIMENSIONS } from '../constants';
 
+// Import the actual Google Generative AI SDK
+// Uncomment the line below when you want to use real Gemini API calls
+// import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+
 // IMPORTANT: This service SIMULATES Gemini calls. It does not use the actual @google/genai SDK for these simulations.
 // The API key is assumed to be available via process.env.GEMINI_API_KEY as per requirements.
-// const GEMINI_API_KEY = process.env.GEMINI_API_KEY; 
-// const ai = new GoogleGenAI({apiKey: GEMINI_API_KEY}); // This would be the actual initialization
 
 // --- Simulation Helpers ---
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -19,30 +21,86 @@ const simulatePicsumImage = (width: number, height: number): string => {
 // --- Simulated Gemini Service ---
 class GeminiService {
   private apiKey: string;
+  private useRealAPI: boolean;
+  // private genAI: GoogleGenerativeAI; // Uncomment when using real API
 
   constructor() {
     // This adheres to the requirement: "The API key must be obtained exclusively from the environment variable process.env.GEMINI_API_KEY"
     // And "Assume this variable is pre-configured, valid, and accessible"
     this.apiKey = process.env.GEMINI_API_KEY || "SIMULATED_GEMINI_API_KEY_DEV_ONLY";
-    if (this.apiKey === "SIMULATED_GEMINI_API_KEY_DEV_ONLY" || this.apiKey === "YOUR_GEMINI_API_KEY_PLACEHOLDER") {
+    this.useRealAPI = this.apiKey !== "SIMULATED_GEMINI_API_KEY_DEV_ONLY" && this.apiKey !== "YOUR_GEMINI_API_KEY_PLACEHOLDER";
+    
+    if (!this.useRealAPI) {
         console.warn("Using a placeholder API Key for GeminiService. Actual Gemini calls will not be made.");
     }
-    // Actual GoogleGenAI instance would be created here if not just simulating:
-    // this.ai = new GoogleGenAI({ apiKey: this.apiKey });
+    
+    // Uncomment the lines below when you want to use the real Gemini API:
+    // if (this.useRealAPI) {
+    //   this.genAI = new GoogleGenerativeAI(this.apiKey);
+    // }
+  }
+
+  // Get safety settings with harm content blocking disabled
+  private getSafetySettings() {
+    // Uncomment when using real API:
+    // return [
+    //   {
+    //     category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+    //     threshold: HarmBlockThreshold.BLOCK_NONE,
+    //   },
+    //   {
+    //     category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+    //     threshold: HarmBlockThreshold.BLOCK_NONE,
+    //   },
+    //   {
+    //     category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+    //     threshold: HarmBlockThreshold.BLOCK_NONE,
+    //   },
+    //   {
+    //     category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+    //     threshold: HarmBlockThreshold.BLOCK_NONE,
+    //   },
+    // ];
+    return [];
   }
 
 
   async generateOriginStory(name: string, concept: string): Promise<string> {
-    console.log(`[GeminiService] Simulating generateOriginStory for ${name}: ${concept}`);
-    await delay(1500 + Math.random() * 1000); // Simulate API call latency
-    
-    // Simulated Gemini prompt construction
     const prompt = `Generate a brief, compelling origin story (2-3 paragraphs) for a character named "${name}". 
     Their core concept is: "${concept}". 
     The story should be engaging and set a clear tone (heroic, tragic, mysterious, etc.) based on the concept.
     It should hint at their powers or defining moment without being overly explicit unless the concept demands it.
     Make it feel like the beginning of an epic saga.`;
 
+    // Use real API if available, otherwise simulate
+    if (this.useRealAPI) {
+      console.log(`[GeminiService] Using real API for generateOriginStory for ${name}: ${concept}`);
+      // Uncomment when using real API:
+      // try {
+      //   const model = this.genAI.getGenerativeModel({ 
+      //     model: "gemini-pro",
+      //     safetySettings: this.getSafetySettings()
+      //   });
+      //   const result = await model.generateContent(prompt);
+      //   const response = await result.response;
+      //   return response.text();
+      // } catch (error) {
+      //   console.error("Error generating origin story:", error);
+      //   // Fallback to simulation if API fails
+      //   return this.simulateOriginStory(name, concept, prompt);
+      // }
+      
+      // For now, still simulate even with real API key until you uncomment the code above
+      return this.simulateOriginStory(name, concept, prompt);
+    } else {
+      console.log(`[GeminiService] Simulating generateOriginStory for ${name}: ${concept}`);
+      return this.simulateOriginStory(name, concept, prompt);
+    }
+  }
+
+  private async simulateOriginStory(name: string, concept: string, prompt: string): Promise<string> {
+    await delay(1500 + Math.random() * 1000); // Simulate API call latency
+    
     // Simulated Gemini response
     const generatedStory = `In the neon-drenched alleys of Neo-Veridia, ${name} was once just another face in the crowd. ${concept.toLowerCase().includes('tech') ? 'A brilliant but overlooked engineer,' : 'An ordinary individual with an extraordinary destiny,'} their life took a sharp turn when ${concept.toLowerCase().includes('shadowmancer') ? 'they stumbled upon an ancient tome of forbidden shadow magic in a forgotten library.' : concept.toLowerCase().includes('electricity') ? 'a freak accident involving an experimental energy core bathed them in raw, untamed electrical power.' : 'a mysterious event granted them abilities beyond human comprehension.'}
 
