@@ -27,7 +27,7 @@ class BGMService {
     this.setupUserInteractionTracking();
   }
   private isPlaying: boolean = false;
-  private volume: number = 0.3;
+  private volume: number = 0.7;
   private fadeInterval: NodeJS.Timeout | null = null;
   private isLoading: boolean = false;
   private userHasInteracted: boolean = false;
@@ -40,28 +40,28 @@ class BGMService {
       url: '', // Will use generated audio
       mood: MusicMood.Heroic,
       section: GameSection.MainMenu,
-      volume: 0.4
+      volume: 0.6
     },
     {
       id: 'creation_mysterious',
       url: '', // Will use generated audio
       mood: MusicMood.Mysterious,
       section: GameSection.CharacterCreation,
-      volume: 0.3
+      volume: 0.5
     },
     {
       id: 'gameplay_ambient',
       url: '', // Will use generated audio
       mood: MusicMood.Ambient,
       section: GameSection.NormalGameplay,
-      volume: 0.25
+      volume: 0.4
     },
     {
       id: 'action_intense',
       url: '', // Will use generated audio
       mood: MusicMood.Intense,
       section: GameSection.ActionGameplay,
-      volume: 0.5
+      volume: 0.7
     }
   ];
 
@@ -178,7 +178,7 @@ class BGMService {
       }
       
       // Fade in to audible volume
-      const targetVolume = track.volume * this.volume;
+      const targetVolume = Math.min(track.volume + (this.volume * 0.3), 1.0);
       this.masterGain.gain.linearRampToValueAtTime(targetVolume, this.audioContext.currentTime + 1.5);
       
       logger.info('BGM_SERVICE', `Generated ${track.mood} mood audio at volume ${targetVolume}`);
