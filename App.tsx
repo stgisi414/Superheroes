@@ -7,6 +7,7 @@ import { geminiService } from './services/geminiService';
 import { loadGame, saveGame, GameState } from './services/localStorageService';
 import { logger } from './services/logger';
 import { bgmService } from './services/bgmService';
+import { audioService } from './services/audioService'; // Added missing import
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.Landing);
