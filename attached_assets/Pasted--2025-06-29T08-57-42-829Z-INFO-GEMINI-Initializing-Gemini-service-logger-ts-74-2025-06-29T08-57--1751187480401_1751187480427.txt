@@ -1,0 +1,74 @@
+[2025-06-29T08:57:42.829Z] INFO GEMINI: Initializing Gemini service 
+logger.ts:74 [2025-06-29T08:57:42.831Z] INFO GEMINI: Real Gemini API key found and configured 
+logger.ts:74 [2025-06-29T08:57:42.975Z] INFO BGM_SERVICE: Switching to main_menu music 
+logger.ts:74 [2025-06-29T08:57:42.976Z] INFO BGM_SERVICE: Loading track: menu_heroic for mood: heroic 
+dc6fd3fc-1ae9-41e5-b6a6-cdd53582d9eb-00-1akqpj7omovi5.riker.replit.dev/:1 Access to audio at 'https://www.soundjay.com/misc/sounds/music/orchestral-theme-01.mp3' from origin 'https://dc6fd3fc-1ae9-41e5-b6a6-cdd53582d9eb-00-1akqpj7omovi5.riker.replit.dev' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.Understand this error
+www.soundjay.com/misc/sounds/music/orchestral-theme-01.mp3:1 
+            
+            
+           GET https://www.soundjay.com/misc/sounds/music/orchestral-theme-01.mp3 net::ERR_FAILED 200 (OK)Understand this error
+logger.ts:74 [2025-06-29T08:57:45.927Z] ERROR BGM_SERVICE: Error loading audio track {error: {…}, trackId: 'menu_heroic'}
+logger.ts:80 Error
+    at Logger.createLogEntry (logger.ts:49:26)
+    at Logger.error (logger.ts:104:24)
+    at currentAudio.onerror (bgmService.ts:104:16)
+addLog @ logger.ts:80
+error @ logger.ts:104
+currentAudio.onerror @ bgmService.ts:104Understand this error
+logger.ts:74 [2025-06-29T08:57:45.934Z] INFO BGM_SERVICE: Falling back to generated tones due to audio loading issues 
+bgmService.ts:170 The AudioContext was not allowed to start. It must be resumed (or created) after a user gesture on the page. https://developer.chrome.com/blog/autoplay/#web_audio
+generateSimpleBackgroundTone @ bgmService.ts:170
+fallbackToSilence @ bgmService.ts:150
+currentAudio.onerror @ bgmService.ts:105Understand this warning
+logger.ts:74 [2025-06-29T08:57:46.115Z] INFO BGM_SERVICE: Generated simple background tone 
+logger.ts:74 [2025-06-29T08:57:46.116Z] ERROR BGM_SERVICE: Error playing track {error: {…}, trackId: 'menu_heroic'}
+logger.ts:80 Error
+    at Logger.createLogEntry (logger.ts:49:26)
+    at Logger.error (logger.ts:104:24)
+    at BGMService.playTrack (bgmService.ts:142:14)
+    at async BGMService.playForSection (bgmService.ts:82:7)
+addLog @ logger.ts:80
+error @ logger.ts:104
+playTrack @ bgmService.ts:142
+await in playTrack
+playForSection @ bgmService.ts:82
+(anonymous) @ App.tsx:25
+react-stack-bottom-frame @ react-dom_client.js?v=891a6464:17476
+runWithFiberInDEV @ react-dom_client.js?v=891a6464:1483
+commitHookEffectListMount @ react-dom_client.js?v=891a6464:8458
+commitHookPassiveMountEffects @ react-dom_client.js?v=891a6464:8516
+commitPassiveMountOnFiber @ react-dom_client.js?v=891a6464:9885
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=891a6464:9866
+commitPassiveMountOnFiber @ react-dom_client.js?v=891a6464:9982
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=891a6464:9866
+commitPassiveMountOnFiber @ react-dom_client.js?v=891a6464:9897
+flushPassiveEffects @ react-dom_client.js?v=891a6464:11300
+(anonymous) @ react-dom_client.js?v=891a6464:11058
+performWorkUntilDeadline @ react-dom_client.js?v=891a6464:34
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=891a6464:248
+(anonymous) @ index.tsx:14Understand this error
+logger.ts:74 [2025-06-29T08:57:46.117Z] INFO BGM_SERVICE: Falling back to generated tones due to audio loading issues 
+bgmService.ts:170 The AudioContext was not allowed to start. It must be resumed (or created) after a user gesture on the page. https://developer.chrome.com/blog/autoplay/#web_audio
+generateSimpleBackgroundTone @ bgmService.ts:170
+fallbackToSilence @ bgmService.ts:150
+playTrack @ bgmService.ts:143
+await in playTrack
+playForSection @ bgmService.ts:82
+(anonymous) @ App.tsx:25
+react-stack-bottom-frame @ react-dom_client.js?v=891a6464:17476
+runWithFiberInDEV @ react-dom_client.js?v=891a6464:1483
+commitHookEffectListMount @ react-dom_client.js?v=891a6464:8458
+commitHookPassiveMountEffects @ react-dom_client.js?v=891a6464:8516
+commitPassiveMountOnFiber @ react-dom_client.js?v=891a6464:9885
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=891a6464:9866
+commitPassiveMountOnFiber @ react-dom_client.js?v=891a6464:9982
+recursivelyTraversePassiveMountEffects @ react-dom_client.js?v=891a6464:9866
+commitPassiveMountOnFiber @ react-dom_client.js?v=891a6464:9897
+flushPassiveEffects @ react-dom_client.js?v=891a6464:11300
+(anonymous) @ react-dom_client.js?v=891a6464:11058
+performWorkUntilDeadline @ react-dom_client.js?v=891a6464:34
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=891a6464:248
+(anonymous) @ index.tsx:14Understand this warning
+logger.ts:74 [2025-06-29T08:57:46.121Z] INFO BGM_SERVICE: Generated simple background tone 
