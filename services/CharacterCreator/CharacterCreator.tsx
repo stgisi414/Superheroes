@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Character, CharacterStats, StatName } from '../../types';
 import { DEFAULT_STATS, INITIAL_STAT_POINTS } from '../../constants';
@@ -122,9 +121,14 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
               concept={characterConcept}
               setConcept={setCharacterConcept}
               onNext={handleNext}
+              onSubmit={(name: string, concept: string) => {
+                setCharacterName(name);
+                setCharacterConcept(concept);
+                handleNext();
+              }}
             />
           )}
-          
+
           {currentStep === 2 && (
             <Step2OriginStory
               originStory={originStory}
@@ -133,7 +137,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
               onBack={handleBack}
             />
           )}
-          
+
           {currentStep === 3 && (
             <Step3Portrait
               portraitUrl={portraitUrl}
@@ -144,7 +148,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
               onBack={handleBack}
             />
           )}
-          
+
           {currentStep === 4 && (
             <Step4StatAllocation
               stats={stats}
@@ -165,7 +169,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
             >
               ← BACK
             </button>
-            
+
             <button
               onClick={handleNext}
               disabled={!isStepValid()}
@@ -183,7 +187,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
           <span className="font-bangers text-white text-xl">BOOM!</span>
         </div>
       </div>
-      
+
       <div className="fixed bottom-20 right-10 pointer-events-none">
         <div className="bg-red-500 border-4 border-black p-3 transform -rotate-12 animate-bounce">
           <span className="font-bangers text-white text-xl">POW!</span>
