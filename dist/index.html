@@ -1,61 +1,287 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gemini RPG Orchestrator</title>
+  <title>Comic RPG Adventure</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#7c3aed">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body {
-      font-family: 'Inter', sans-serif; /* A nice default sans-serif font often available or use system-ui */
-    }
-    /* Custom scrollbar for webkit browsers */
-    ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #1a202c; /* dark-gray-800 */
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #4a5568; /* dark-gray-600 */
-      border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #718096; /* dark-gray-500 */
-    }
-    /* For a more "terminal" or "digital book" feel, consider a monospace or serif font for story text */
-    .story-text-font {
-        font-family: 'Lora', serif; /* Example serif, ensure it's loaded or use a common one */
-    }
-    .font-orbitron {
-        font-family: 'Orbitron', sans-serif;
-    }
-    /* Animation for StoryPanel entries */
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .animate-fadeIn {
-      animation: fadeIn 0.5s ease-out forwards;
-    }
-  </style>
+    @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Creepster&family=Bungee:wght@400&family=Fredoka+One:wght@400&family=Comic+Neue:wght@400;700&display=swap');
 
-<link rel="stylesheet" href="/index.css">
-<script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
-    "react/": "https://esm.sh/react@^19.1.0/",
-    "react": "https://esm.sh/react@^19.1.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.7.0"
-  }
-}
-</script>
-  <script type="module" crossorigin src="/assets/index-ByvOn5IS.js"></script>
+    body {
+      font-family: 'Comic Neue', cursive;
+      background: linear-gradient(45deg, #1e40af, #7c3aed, #dc2626);
+      background-size: 400% 400%;
+      animation: gradientShift 8s ease infinite;
+    }
+
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Comic book fonts */
+
+    .font-comic {
+      font-family: 'Comic Neue', cursive;
+    }
+
+    .font-bangers {
+      font-family: 'Bangers', cursive;
+    }
+
+    .font-creepster {
+      font-family: 'Creepster', cursive;
+    }
+
+    .font-bungee {
+      font-family: 'Bungee', cursive;
+    }
+
+    .font-fredoka {
+      font-family: 'Fredoka One', cursive;
+    }
+
+    /* Comic panel styling */
+
+    .comic-panel {
+      background: #ffffff;
+      border: 4px solid #000;
+      border-radius: 8px;
+      box-shadow: 0 0 0 2px #fff, 0 0 0 6px #000, 8px 8px 0 #000;
+      position: relative;
+    }
+
+    .comic-panel-dark {
+      background: #1a1a2e;
+      border: 4px solid #eee;
+      color: #fff;
+      box-shadow: 0 0 0 2px #1a1a2e, 0 0 0 6px #eee, 8px 8px 0 #333;
+    }
+
+    /* Speech bubble styling */
+
+    .speech-bubble {
+      background: #ffffff;
+      border: 3px solid #000;
+      border-radius: 20px;
+      position: relative;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+
+    .speech-bubble::before {
+      content: '';
+      position: absolute;
+      bottom: -15px;
+      left: 30px;
+      width: 0;
+      height: 0;
+      border: 15px solid transparent;
+      border-top-color: #000;
+    }
+
+    .speech-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -9px;
+      left: 33px;
+      width: 0;
+      height: 0;
+      border: 12px solid transparent;
+      border-top-color: #ffffff;
+    }
+
+    /* Thought bubble for story text */
+
+    .thought-bubble {
+      background: #f0f8ff;
+      border: 3px dashed #4169e1;
+      border-radius: 25px;
+      position: relative;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+
+    /* Comic book button styling */
+
+    .comic-button {
+      background: linear-gradient(45deg, #ff6b6b, #feca57);
+      border: 3px solid #000;
+      border-radius: 8px;
+      box-shadow: 4px 4px 0 #000;
+      font-family: 'Bangers', cursive;
+      font-size: 1.2rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.1s ease;
+    }
+
+    .comic-button:hover {
+      transform: translate(2px, 2px);
+      box-shadow: 2px 2px 0 #000;
+    }
+
+    .comic-button:active {
+      transform: translate(4px, 4px);
+      box-shadow: 0 0 0 #000;
+    }
+
+    .comic-button-secondary {
+      background: linear-gradient(45deg, #74b9ff, #6c5ce7);
+      border: 3px solid #000;
+      border-radius: 8px;
+      box-shadow: 4px 4px 0 #000;
+    }
+
+    .comic-button-danger {
+      background: linear-gradient(45deg, #fd79a8, #e84393);
+      border: 3px solid #000;
+      border-radius: 8px;
+      box-shadow: 4px 4px 0 #000;
+    }
+
+    /* POW/BAM style text effects */
+
+    .pow-text {
+      font-family: 'Bangers', cursive;
+      font-size: 2rem;
+      color: #ff0000;
+      text-shadow: 3px 3px 0 #000, -1px -1px 0 #fff;
+      transform: rotate(-5deg);
+    }
+
+    .bam-text {
+      font-family: 'Bangers', cursive;
+      font-size: 1.5rem;
+      color: #ffff00;
+      text-shadow: 2px 2px 0 #000, -1px -1px 0 #000;
+    }
+
+    /* Custom scrollbar with comic styling */
+
+    ::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #ffeb3b;
+      border: 2px solid #000;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(45deg, #ff5722, #f44336);
+      border: 2px solid #000;
+      border-radius: 0;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(45deg, #e91e63, #9c27b0);
+    }
+
+    /* Animation for comic panels */
+
+    @keyframes comicPop {
+      0% { 
+        opacity: 0; 
+        transform: scale(0.8) rotate(-2deg); 
+      }
+      50% { 
+        transform: scale(1.05) rotate(1deg); 
+      }
+      100% { 
+        opacity: 1; 
+        transform: scale(1) rotate(0deg); 
+      }
+    }
+
+    .animate-comic-pop {
+      animation: comicPop 0.5s ease-out forwards;
+    }
+
+    /* Superhero Flying Logo Animation */
+
+    @keyframes superheroFly {
+      0% {
+        transform: translateX(-100px) translateY(20px) rotate(-15deg) scale(0.8);
+        opacity: 0;
+      }
+      25% {
+        transform: translateX(-25px) translateY(-10px) rotate(-5deg) scale(0.9);
+        opacity: 0.7;
+      }
+      50% {
+        transform: translateX(0px) translateY(-20px) rotate(0deg) scale(1);
+        opacity: 1;
+      }
+      75% {
+        transform: translateX(10px) translateY(-15px) rotate(2deg) scale(1.05);
+        opacity: 1;
+      }
+      100% {
+        transform: translateX(0px) translateY(0px) rotate(0deg) scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes superheroHover {
+      0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+      }
+      50% {
+        transform: translateY(-8px) rotate(1deg);
+      }
+    }
+
+    .superhero-logo {
+      width: 80px;
+      height: 80px;
+      border: 6px solid #000;
+      border-radius: 50%;
+      padding: 8px;
+      background: linear-gradient(45deg, #ffd700, #ffeb3b);
+      box-shadow: 
+        0 0 0 3px #fff,
+        0 0 0 9px #000,
+        0 0 20px rgba(255, 215, 0, 0.5),
+        inset 0 0 20px rgba(255, 255, 255, 0.3);
+      animation: superheroFly 2s ease-out forwards;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .superhero-logo:hover {
+      animation: superheroHover 1s ease-in-out infinite;
+      box-shadow: 
+        0 0 0 3px #fff,
+        0 0 0 9px #000,
+        0 0 30px rgba(255, 215, 0, 0.8),
+        inset 0 0 30px rgba(255, 255, 255, 0.5);
+    }
+
+    .superhero-logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      filter: brightness(1.1) contrast(1.1);
+    }
+
+    /* Halftone pattern background */
+
+    .halftone-bg {
+      background-image: radial-gradient(circle, #000 20%, transparent 20%);
+      background-size: 10px 10px;
+      background-position: 0 0, 5px 5px;
+    }
+  </style>  <script type="module" crossorigin src="/assets/index-mPxfwJFs.js"></script>
 </head>
-<body class="bg-slate-900 text-slate-100">
+<body class="font-comic bg-gradient-to-br from-purple-600 via-pink-500 to-red-500">
   <div id="root"></div>
   <script>
     // Define a placeholder for process.env.GEMINI_API_KEY if not set by environment
@@ -63,7 +289,7 @@
     if (typeof process === 'undefined') {
       window.process = { env: {} };
     }
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "undefined") {
       // THIS IS FOR DEVELOPMENT/DEMO PURPOSES ONLY.
       // In a real application, the GEMINI_API_KEY MUST be set in the environment.
       // Do not commit actual API keys to your repository.
