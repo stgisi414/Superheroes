@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Character, CharacterStats } from '../../types';
 import { DEFAULT_STATS } from '../../constants';
+import { geminiService } from '../geminiService';
 import Step1CoreConcept from './Step1CoreConcept';
 import Step2OriginStory from './Step2OriginStory';
 import Step3Portrait from './Step3Portrait';
@@ -21,9 +22,24 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
 
   const totalSteps = 4;
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
+      const nextStep = currentStep + 1;
+      setCurrentStep(nextStep);
+      
+      // Auto-generate origin story when entering step 2
+      if (nextStep === 2 && !originStory && characterName && characterConcept) {
+        setIsGeneratingOrigin(true);
+        try {
+          const generatedStory = await geminiService.generateOriginStory(characterName, characterConcept);
+          setOriginStory(generatedStory);
+        } catch (error) {
+          console.error('Error generating origin story:', error);
+          setOriginStory('Unable to generate origin story. Please try again.');
+        } finally {
+          setIsGeneratingOrigin(false);
+        }
+      }
     }
   };
 
@@ -76,14 +92,19 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
     handleNext();
   };
 
-  const handleRegenerateOrigin = () => {
-    // Implement your origin story regeneration logic here
-    // This is a placeholder
+  const handleRegenerateOrigin = async () => {
+    if (!characterName || !characterConcept) return;
+    
     setIsGeneratingOrigin(true);
-    setTimeout(() => {
-      setOriginStory("A new origin story generated!");
+    try {
+      const generatedStory = await geminiService.generateOriginStory(characterName, characterConcept);
+      setOriginStory(generatedStory);
+    } catch (error) {
+      console.error('Error generating origin story:', error);
+      setOriginStory('Unable to generate origin story. Please try again.');
+    } finally {
       setIsGeneratingOrigin(false);
-    }, 2000);
+    }
   };
 
   return (
