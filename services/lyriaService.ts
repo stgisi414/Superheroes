@@ -3,11 +3,12 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { MusicMood } from '../types';
 import { logger, LogCategory, logError, logPerformance } from './logger';
 
-interface LyriaSession {
-  play(): void;
-  pause(): void;
-  stop(): void;
-  setWeightedPrompts(prompts: { weightedPrompts: Array<{ text: string; weight: number }> }): Promise<void>;
+interface MusicSession {
+  play(): Promise<void>;
+  pause(): Promise<void>;
+  stop(): Promise<void>;
+  setWeightedPrompts(config: { weightedPrompts: Array<{ text: string; weight: number }> }): Promise<void>;
+  setMusicGenerationConfig(config: { musicGenerationConfig: { bpm?: number; temperature?: number } }): Promise<void>;
 }
 
 interface LiveMusicServerMessage {
@@ -18,7 +19,7 @@ interface LiveMusicServerMessage {
 
 class LyriaService {
   private genAI: GoogleGenerativeAI | null = null;
-  private session: LyriaSession | null = null;
+  private session: MusicSession | null = null;
   private audioContext: AudioContext | null = null;
   private outputNode: GainNode | null = null;
   private nextStartTime: number = 0;
@@ -40,10 +41,14 @@ class LyriaService {
         throw new Error('GEMINI_API_KEY not found in environment variables');
       }
 
-      this.genAI = new GoogleGenerativeAI({
-        apiKey: apiKey,
-        apiVersion: 'v1alpha' // Required for Lyria access
-      });
+      // Try to initialize with v1alpha API version for Lyria
+      try {
+        this.genAI = new GoogleGenerativeAI(apiKey);
+        logger.info(LogCategory.AUDIO, 'GoogleGenerativeAI client initialized');
+      } catch (sdkError) {
+        logError(LogCategory.AUDIO, 'Failed to initialize GoogleGenerativeAI client', sdkError);
+        throw new Error('Unable to initialize Gemini AI client - Lyria not available');
+      }
 
       // Initialize Web Audio API
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -68,16 +73,22 @@ class LyriaService {
     const endTimer = logPerformance(LogCategory.AUDIO, 'Connect to Lyria');
 
     try {
-      // Connect to Lyria live music service
-      this.session = await (this.genAI as any).live.music.connect({
-        model: 'lyria-realtime-exp',
+      // Check if Lyria API is available
+      const genAIAny = this.genAI as any;
+      if (!genAIAny.live || !genAIAny.live.music) {
+        throw new Error('Lyria API not available - live.music interface not found in current SDK version');
+      }
+
+      // Connect to Lyria live music service using correct API structure
+      this.session = await genAIAny.live.music.connect({
+        model: 'models/lyria-realtime-exp',
         callbacks: {
-          onmessage: this.handleServerMessage.bind(this),
-          onerror: (e: ErrorEvent) => {
-            logError(LogCategory.AUDIO, 'Lyria connection error', e);
+          onMessage: this.handleServerMessage.bind(this),
+          onError: (error: any) => {
+            logError(LogCategory.AUDIO, 'Lyria connection error', error);
           },
-          onclose: (e: CloseEvent) => {
-            logger.info(LogCategory.AUDIO, 'Lyria connection closed', { code: e.code, reason: e.reason });
+          onClose: () => {
+            logger.info(LogCategory.AUDIO, 'Lyria connection closed');
             this.isConnected = false;
           },
         },
@@ -95,13 +106,13 @@ class LyriaService {
     }
   }
 
-  private async handleServerMessage(e: LiveMusicServerMessage): Promise<void> {
+  private async handleServerMessage(message: LiveMusicServerMessage): Promise<void> {
     if (!this.audioContext || !this.outputNode) return;
 
     try {
       // Check if the message contains audio chunks
-      if (e.serverContent?.audioChunks !== undefined) {
-        const audioData = e.serverContent.audioChunks[0].data;
+      if (message.serverContent?.audioChunks !== undefined) {
+        const audioData = message.serverContent.audioChunks[0].data;
         
         // Decode the base64 audio data
         const audioBuffer = await this.decodeAudioData(
@@ -172,7 +183,7 @@ class LyriaService {
     }
 
     try {
-      this.session.play();
+      await this.session.play();
       this.isPlaying = true;
       logger.info(LogCategory.AUDIO, 'Lyria playback started');
     } catch (error) {
@@ -187,7 +198,7 @@ class LyriaService {
     }
 
     try {
-      this.session.pause();
+      await this.session.pause();
       this.isPlaying = false;
       logger.info(LogCategory.AUDIO, 'Lyria playback paused');
     } catch (error) {
@@ -202,7 +213,7 @@ class LyriaService {
     }
 
     try {
-      this.session.stop();
+      await this.session.stop();
       this.isPlaying = false;
       this.currentMood = null;
       logger.info(LogCategory.AUDIO, 'Lyria playback stopped');
@@ -222,10 +233,16 @@ class LyriaService {
       const prompts = this.getMoodPrompts(mood);
       const weightedPrompts = prompts.map(text => ({ text, weight: 1.0 }));
       
+      // Use correct API method names
       await this.session.setWeightedPrompts({ weightedPrompts });
+      
+      // Set music generation config with appropriate BPM and temperature for mood
+      const config = this.getMoodConfig(mood);
+      await this.session.setMusicGenerationConfig({ musicGenerationConfig: config });
+      
       this.currentMood = mood;
       
-      logger.info(LogCategory.AUDIO, `Lyria mood set to ${mood}`, { prompts });
+      logger.info(LogCategory.AUDIO, `Lyria mood set to ${mood}`, { prompts, config });
     } catch (error) {
       logError(LogCategory.AUDIO, 'Failed to set Lyria mood', error);
       throw error;
@@ -237,54 +254,61 @@ class LyriaService {
       [MusicMood.Tension]: [
         'suspenseful orchestral music',
         'building tension',
-        'dramatic strings and brass',
-        'ominous atmosphere'
+        'dramatic strings and brass'
       ],
       [MusicMood.Battle]: [
         'epic battle music',
         'intense orchestral combat',
-        'heroic brass and percussion',
-        'fast-paced action theme'
+        'heroic brass and percussion'
       ],
       [MusicMood.Exploration]: [
         'ambient exploration music',
         'mysterious discovery theme',
-        'ethereal atmospheric sounds',
-        'wandering melody'
+        'ethereal atmospheric sounds'
       ],
       [MusicMood.Somber]: [
         'melancholic piano and strings',
         'sad emotional music',
-        'reflective minor key',
-        'mourning atmosphere'
+        'reflective minor key'
       ],
       [MusicMood.Heroic]: [
         'triumphant heroic theme',
         'inspiring orchestral music',
-        'noble brass fanfare',
-        'uplifting melody'
+        'noble brass fanfare'
       ],
       [MusicMood.Mysterious]: [
         'mysterious ambient music',
         'enigmatic soundscape',
-        'ethereal mysterious tones',
-        'otherworldly atmosphere'
+        'ethereal mysterious tones'
       ],
       [MusicMood.Intense]: [
         'intense dramatic music',
         'high energy orchestral',
-        'powerful driving rhythm',
-        'climactic tension'
+        'powerful driving rhythm'
       ],
       [MusicMood.Ambient]: [
         'calm ambient background',
         'peaceful atmospheric music',
-        'subtle environmental sounds',
         'meditative soundscape'
       ]
     };
 
     return moodPrompts[mood] || ['ambient background music'];
+  }
+
+  private getMoodConfig(mood: MusicMood): { bpm?: number; temperature?: number } {
+    const configs: Record<MusicMood, { bpm?: number; temperature?: number }> = {
+      [MusicMood.Tension]: { bpm: 80, temperature: 0.7 },
+      [MusicMood.Battle]: { bpm: 140, temperature: 0.9 },
+      [MusicMood.Exploration]: { bpm: 90, temperature: 0.8 },
+      [MusicMood.Somber]: { bpm: 60, temperature: 0.5 },
+      [MusicMood.Heroic]: { bpm: 120, temperature: 0.7 },
+      [MusicMood.Mysterious]: { bpm: 70, temperature: 0.9 },
+      [MusicMood.Intense]: { bpm: 160, temperature: 1.0 },
+      [MusicMood.Ambient]: { bpm: 80, temperature: 0.6 }
+    };
+
+    return configs[mood] || { bpm: 90, temperature: 0.7 };
   }
 
   setVolume(volume: number): void {

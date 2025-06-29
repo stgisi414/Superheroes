@@ -1,4 +1,3 @@
-
 import { MusicMood, VoiceProfile } from '../types';
 import { bgmService } from './bgmService';
 import { lyriaService } from './lyriaService';
@@ -16,8 +15,11 @@ class AudioService {
       this.isLyriaEnabled = true;
       logger.info(LogCategory.AUDIO, 'Audio service initialized with Lyria support');
     } catch (error) {
-      logError(LogCategory.AUDIO, 'Failed to initialize Lyria, falling back to BGM service', error);
+      logger.warn(LogCategory.AUDIO, 'Lyria not available in current environment, using BGM service only', {
+        reason: error instanceof Error ? error.message : 'Unknown error'
+      });
       this.isLyriaEnabled = false;
+      // Don't throw here - fallback to BGM service is acceptable
     }
   }
 
@@ -78,7 +80,7 @@ class AudioService {
     // This would integrate with Google Cloud TTS
     // For now, we'll simulate TTS playback
     logger.info(LogCategory.AUDIO, `Playing TTS: "${text}" with voice: ${voice}`);
-    
+
     // Simulate TTS with browser's built-in speech synthesis as fallback
     if ('speechSynthesis' in window) {
       const utterance = new SpeechSynthesisUtterance(text);
@@ -92,7 +94,7 @@ class AudioService {
   async speakText(text: string, voiceProfile: VoiceProfile): Promise<HTMLAudioElement> {
     // In a real app, this would call Google Cloud TTS API, get an audio stream/URL.
     console.log(`[AudioService] Simulating: Generating TTS for text: "${text}" with voice: ${voiceProfile}`);
-    
+
     // Stop any currently playing TTS
     if (this.currentTTSAudio) {
       this.currentTTSAudio.pause();
@@ -120,12 +122,12 @@ class AudioService {
              utterance.pitch = 0.5;
              utterance.rate = 0.8;
           }
-          
+
           if (selectedVoice) utterance.voice = selectedVoice;
 
           // Create a dummy HTMLAudioElement to satisfy the return type and control via AudioOrchestrator
           const audio = new Audio(); 
-          
+
           utterance.onstart = () => {
             console.log("[AudioService] TTS playback started (simulated via SpeechSynthesis).");
           };
@@ -141,7 +143,7 @@ class AudioService {
              const errorEvent = new Event('error');
             audio.dispatchEvent(errorEvent);
           };
-          
+
           window.speechSynthesis.speak(utterance);
           this.currentTTSAudio = audio; // Track this for potential interruption
           resolve(audio); // Resolve with the dummy audio element
