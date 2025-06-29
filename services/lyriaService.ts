@@ -1,34 +1,165 @@
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import {
+  GoogleGenAI,
+  type LiveMusicSession,
+  type LiveMusicServerMessage,
+} from '@google/genai';
 import { MusicMood } from '../types';
 import { logger, LogCategory, logError, logPerformance } from './logger';
 
-interface MusicSession {
-  play(): Promise<void>;
-  pause(): Promise<void>;
-  stop(): Promise<void>;
-  setWeightedPrompts(config: { weightedPrompts: Array<{ text: string; weight: number }> }): Promise<void>;
-  setMusicGenerationConfig(config: { musicGenerationConfig: { bpm?: number; temperature?: number } }): Promise<void>;
+type PlaybackState = 'stopped' | 'playing' | 'loading' | 'paused';
+
+interface MusicState {
+  playbackState: PlaybackState;
+  isMuted: boolean;
 }
 
-interface LiveMusicServerMessage {
-  serverContent?: {
-    audioChunks?: Array<{ data: string }>;
-  };
-}
+type StateListener = (newState: MusicState) => void;
+
+const model = 'lyria-realtime-exp';
+const sampleRate = 48000;
+const bufferTime = 2; // Audio buffer in seconds
 
 class LyriaService {
-  private genAI: GoogleGenerativeAI | null = null;
-  private session: MusicSession | null = null;
+  private ai: GoogleGenAI | null = null;
+  private session: LiveMusicSession | null = null;
   private audioContext: AudioContext | null = null;
   private outputNode: GainNode | null = null;
   private nextStartTime: number = 0;
-  private isConnected: boolean = false;
-  private isPlaying: boolean = false;
+  private connectionError: boolean = false;
   private currentMood: MusicMood | null = null;
+
+  private state: MusicState = {
+    playbackState: 'stopped',
+    isMuted: false,
+  };
+  private listeners: Set<StateListener> = new Set();
 
   constructor() {
     logger.info(LogCategory.AUDIO, 'Initializing Lyria service');
+  }
+
+  private updateState(newState: Partial<MusicState>): void {
+    this.state = { ...this.state, ...newState };
+    this.listeners.forEach((listener) => listener(this.state));
+  }
+
+  private initAudioContext(): void {
+    if (!this.audioContext || this.audioContext.state === 'closed') {
+      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+        sampleRate,
+      });
+      this.outputNode = this.audioContext.createGain();
+      this.outputNode.connect(this.audioContext.destination);
+      // Ensure outputNode gain reflects initial mute state when context is created
+      this.outputNode.gain.setValueAtTime(this.state.isMuted ? 0 : 1, this.audioContext.currentTime);
+    }
+  }
+
+  /**
+   * Decodes a base64 string.
+   */
+  private decode(str: string): string {
+    return atob(str);
+  }
+
+  /**
+   * Decodes audio data into an AudioBuffer.
+   * The incoming data from the Lyria model is interleaved 16-bit PCM.
+   */
+  private async decodeAudioData(
+    audioData: string,
+    audioContext: AudioContext,
+    sampleRate: number,
+    numChannels: number,
+  ): Promise<AudioBuffer> {
+    // Convert the binary string from atob() into a byte buffer (ArrayBuffer).
+    const pcm16Data = new ArrayBuffer(audioData.length);
+    const pcm16DataView = new Uint8Array(pcm16Data);
+    for (let i = 0; i < audioData.length; i++) {
+      pcm16DataView[i] = audioData.charCodeAt(i);
+    }
+
+    // Create a view of the buffer as 16-bit signed integers.
+    const pcm16Samples = new Int16Array(pcm16Data);
+
+    // The number of frames is the total number of samples divided by the number of channels.
+    const numFrames = pcm16Samples.length / numChannels;
+
+    // Create an empty AudioBuffer with the correct parameters.
+    const audioBuffer = audioContext.createBuffer(
+      numChannels,
+      numFrames,
+      sampleRate,
+    );
+
+    // De-interleave and normalize the 16-bit PCM data into 32-bit float data for each channel.
+    for (let channel = 0; channel < numChannels; channel++) {
+      const channelData = audioBuffer.getChannelData(channel);
+      for (let i = 0; i < numFrames; i++) {
+        // Get the interleaved sample for this channel.
+        const sample = pcm16Samples[i * numChannels + channel];
+        // Normalize from the 16-bit integer range [-32768, 32767] to the float range [-1.0, 1.0] and store it.
+        channelData[i] = sample / 32768.0;
+      }
+    }
+
+    return audioBuffer;
+  }
+
+  private async handleServerMessage(e: LiveMusicServerMessage): Promise<void> {
+    console.log('Received message from the music server:', e);
+    if (e.setupComplete) {
+      this.connectionError = false;
+    }
+    if (e.serverContent?.audioChunks !== undefined) {
+      if (this.state.playbackState === 'paused' || this.state.playbackState === 'stopped') return;
+      
+      // Check for filtered prompts to provide feedback
+      if ((e as any).filteredPrompt) {
+        console.warn(`Prompt "${(e as any).filteredPrompt.text}" was filtered because: ${(e as any).filteredPrompt.filteredReason}`);
+      }
+
+      if (!this.audioContext || !this.outputNode) return;
+
+      const audioBuffer = await this.decodeAudioData(
+        this.decode(e.serverContent?.audioChunks[0].data),
+        this.audioContext,
+        sampleRate,
+        2
+      );
+      const source = this.audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(this.outputNode);
+
+      // If starting fresh or after a reset (underrun)
+      if (this.nextStartTime === 0 || this.nextStartTime < this.audioContext.currentTime) {
+        // This inner block is for underruns. It should not trigger on the first chunk (when nextStartTime is 0).
+        if (this.nextStartTime > 0 && this.nextStartTime < this.audioContext.currentTime) {
+          console.warn('Audio buffer underrun detected. Re-synchronizing audio playback.');
+          this.updateState({ playbackState: 'loading' }); // Set to loading to indicate re-buffering
+          
+          // Stop any current playback by recreating the output node to flush the pipeline.
+          this.outputNode.disconnect();
+          this.outputNode = this.audioContext.createGain();
+          this.outputNode.connect(this.audioContext.destination);
+          this.outputNode.gain.setValueAtTime(this.state.isMuted ? 0 : 1, this.audioContext.currentTime);
+        }
+        
+        // Set a new start time, adding buffer time. This happens for the first chunk and after an underrun.
+        this.nextStartTime = this.audioContext.currentTime + bufferTime;
+        
+        // Transition to 'playing' after the buffer time has passed.
+        setTimeout(() => {
+          if (this.state.playbackState === 'loading') {
+            this.updateState({ playbackState: 'playing' });
+          }
+        }, bufferTime * 1000);
+      }
+      
+      source.start(this.nextStartTime);
+      this.nextStartTime += audioBuffer.duration;
+    }
   }
 
   async initialize(): Promise<void> {
@@ -41,20 +172,8 @@ class LyriaService {
         throw new Error('GEMINI_API_KEY not found in environment variables');
       }
 
-      // Try to initialize with v1alpha API version for Lyria
-      try {
-        this.genAI = new GoogleGenerativeAI(apiKey);
-        logger.info(LogCategory.AUDIO, 'GoogleGenerativeAI client initialized');
-      } catch (sdkError) {
-        logError(LogCategory.AUDIO, 'Failed to initialize GoogleGenerativeAI client', sdkError);
-        throw new Error('Unable to initialize Gemini AI client - Lyria not available');
-      }
-
-      // Initialize Web Audio API
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      this.outputNode = this.audioContext.createGain();
-      this.outputNode.connect(this.audioContext.destination);
-      this.outputNode.gain.value = 0.7; // Default volume
+      this.ai = new GoogleGenAI({ apiKey, apiVersion: 'v1alpha' });
+      logger.info(LogCategory.AUDIO, 'GoogleGenAI client initialized');
 
       logger.info(LogCategory.AUDIO, 'Lyria service initialized successfully');
     } catch (error) {
@@ -66,39 +185,38 @@ class LyriaService {
   }
 
   async connect(): Promise<void> {
-    if (!this.genAI || !this.audioContext) {
+    if (!this.ai) {
       throw new Error('Lyria service not initialized');
     }
+
+    if (this.session) return; // Already connected
 
     const endTimer = logPerformance(LogCategory.AUDIO, 'Connect to Lyria');
 
     try {
-      // Check if Lyria API is available
-      const genAIAny = this.genAI as any;
-      if (!genAIAny.live || !genAIAny.live.music) {
-        throw new Error('Lyria API not available - live.music interface not found in current SDK version');
-      }
+      this.initAudioContext();
 
-      // Connect to Lyria live music service using correct API structure
-      this.session = await genAIAny.live.music.connect({
-        model: 'models/lyria-realtime-exp',
+      this.session = await this.ai.live.music.connect({
+        model,
         callbacks: {
-          onMessage: this.handleServerMessage.bind(this),
-          onError: (error: any) => {
-            logError(LogCategory.AUDIO, 'Lyria connection error', error);
+          onmessage: this.handleServerMessage.bind(this),
+          onerror: (e: ErrorEvent) => {
+            console.error('Music service connection error:', e);
+            this.connectionError = true;
+            this.stop();
           },
-          onClose: () => {
-            logger.info(LogCategory.AUDIO, 'Lyria connection closed');
-            this.isConnected = false;
+          onclose: (e: CloseEvent) => {
+            console.log('Music service connection closed.');
+            this.connectionError = true;
+            this.stop();
           },
         },
       });
-
-      this.isConnected = true;
-      this.nextStartTime = this.audioContext.currentTime;
-      
-      logger.info(LogCategory.AUDIO, 'Successfully connected to Lyria');
+      this.connectionError = false;
+      logger.info(LogCategory.AUDIO, "Successfully connected to Lyria music service.");
     } catch (error) {
+      this.connectionError = true;
+      this.updateState({ playbackState: 'stopped' });
       logError(LogCategory.AUDIO, 'Failed to connect to Lyria', error);
       throw error;
     } finally {
@@ -106,249 +224,149 @@ class LyriaService {
     }
   }
 
-  private async handleServerMessage(message: LiveMusicServerMessage): Promise<void> {
-    if (!this.audioContext || !this.outputNode) return;
-
-    try {
-      // Check if the message contains audio chunks
-      if (message.serverContent?.audioChunks !== undefined) {
-        const audioData = message.serverContent.audioChunks[0].data;
-        
-        // Decode the base64 audio data
-        const audioBuffer = await this.decodeAudioData(
-          atob(audioData), // Decode base64
-          this.audioContext,
-          48000, // Sample rate for Lyria
-          2      // Stereo channels
-        );
-
-        // Schedule the audio buffer for seamless playback
-        const source = this.audioContext.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(this.outputNode);
-        
-        // Ensure seamless playback by scheduling at the right time
-        const startTime = Math.max(this.nextStartTime, this.audioContext.currentTime);
-        source.start(startTime);
-        
-        // Update the start time for the next chunk
-        this.nextStartTime = startTime + audioBuffer.duration;
-
-        logger.debug(LogCategory.AUDIO, 'Audio chunk scheduled for playback', {
-          duration: audioBuffer.duration,
-          startTime: startTime,
-          nextStartTime: this.nextStartTime
-        });
-      }
-    } catch (error) {
-      logError(LogCategory.AUDIO, 'Error handling audio message from Lyria', error);
-    }
-  }
-
-  private async decodeAudioData(
-    audioData: string,
-    audioContext: AudioContext,
-    sampleRate: number,
-    numChannels: number
-  ): Promise<AudioBuffer> {
-    // Convert binary string to 16-bit integer array
-    const bytes = new Uint8Array(audioData.length);
-    for (let i = 0; i < audioData.length; i++) {
-      bytes[i] = audioData.charCodeAt(i);
-    }
-    
-    const pcm16Samples = new Int16Array(bytes.buffer);
-    const numFrames = pcm16Samples.length / numChannels;
-
-    // Create an empty AudioBuffer
-    const audioBuffer = audioContext.createBuffer(numChannels, numFrames, sampleRate);
-
-    // De-interleave and normalize the data for each channel
-    for (let channel = 0; channel < numChannels; channel++) {
-      const channelData = audioBuffer.getChannelData(channel);
-      for (let i = 0; i < numFrames; i++) {
-        // Get the sample for this frame and channel
-        const sample = pcm16Samples[i * numChannels + channel];
-        // Normalize to a float between -1.0 and 1.0
-        channelData[i] = sample / 32768.0;
-      }
-    }
-
-    return audioBuffer;
-  }
-
-  async play(): Promise<void> {
-    if (!this.session) {
-      throw new Error('Not connected to Lyria');
-    }
-
-    try {
-      await this.session.play();
-      this.isPlaying = true;
-      logger.info(LogCategory.AUDIO, 'Lyria playback started');
-    } catch (error) {
-      logError(LogCategory.AUDIO, 'Failed to start Lyria playback', error);
-      throw error;
-    }
-  }
-
-  async pause(): Promise<void> {
-    if (!this.session) {
-      throw new Error('Not connected to Lyria');
-    }
-
-    try {
-      await this.session.pause();
-      this.isPlaying = false;
-      logger.info(LogCategory.AUDIO, 'Lyria playback paused');
-    } catch (error) {
-      logError(LogCategory.AUDIO, 'Failed to pause Lyria playback', error);
-      throw error;
-    }
-  }
-
-  async stop(): Promise<void> {
-    if (!this.session) {
-      throw new Error('Not connected to Lyria');
-    }
-
-    try {
-      await this.session.stop();
-      this.isPlaying = false;
-      this.currentMood = null;
-      logger.info(LogCategory.AUDIO, 'Lyria playback stopped');
-    } catch (error) {
-      logError(LogCategory.AUDIO, 'Failed to stop Lyria playback', error);
-      throw error;
-    }
-  }
-
-  async setMood(mood: MusicMood): Promise<void> {
-    if (!this.session) {
-      logger.warn(LogCategory.AUDIO, 'Cannot set mood - not connected to Lyria');
-      return;
-    }
-
-    try {
-      const prompts = this.getMoodPrompts(mood);
-      const weightedPrompts = prompts.map(text => ({ text, weight: 1.0 }));
-      
-      // Use correct API method names
-      await this.session.setWeightedPrompts({ weightedPrompts });
-      
-      // Set music generation config with appropriate BPM and temperature for mood
-      const config = this.getMoodConfig(mood);
-      await this.session.setMusicGenerationConfig({ musicGenerationConfig: config });
-      
-      this.currentMood = mood;
-      
-      logger.info(LogCategory.AUDIO, `Lyria mood set to ${mood}`, { prompts, config });
-    } catch (error) {
-      logError(LogCategory.AUDIO, 'Failed to set Lyria mood', error);
-      throw error;
-    }
-  }
-
   private getMoodPrompts(mood: MusicMood): string[] {
     const moodPrompts: Record<MusicMood, string[]> = {
-      [MusicMood.Tension]: [
-        'suspenseful orchestral music',
-        'building tension',
-        'dramatic strings and brass'
-      ],
-      [MusicMood.Battle]: [
-        'epic battle music',
-        'intense orchestral combat',
-        'heroic brass and percussion'
-      ],
-      [MusicMood.Exploration]: [
-        'ambient exploration music',
-        'mysterious discovery theme',
-        'ethereal atmospheric sounds'
-      ],
-      [MusicMood.Somber]: [
-        'melancholic piano and strings',
-        'sad emotional music',
-        'reflective minor key'
-      ],
-      [MusicMood.Heroic]: [
-        'triumphant heroic theme',
-        'inspiring orchestral music',
-        'noble brass fanfare'
-      ],
-      [MusicMood.Mysterious]: [
-        'mysterious ambient music',
-        'enigmatic soundscape',
-        'ethereal mysterious tones'
-      ],
-      [MusicMood.Intense]: [
-        'intense dramatic music',
-        'high energy orchestral',
-        'powerful driving rhythm'
-      ],
-      [MusicMood.Ambient]: [
-        'calm ambient background',
-        'peaceful atmospheric music',
-        'meditative soundscape'
-      ]
+      [MusicMood.Tension]: ['suspenseful orchestral music', 'building tension', 'dramatic strings'],
+      [MusicMood.Battle]: ['epic battle music', 'intense orchestral combat', 'heroic brass'],
+      [MusicMood.Exploration]: ['ambient exploration music', 'mysterious discovery theme'],
+      [MusicMood.Somber]: ['melancholic piano and strings', 'sad emotional music'],
+      [MusicMood.Heroic]: ['triumphant heroic theme', 'inspiring orchestral music'],
+      [MusicMood.Mysterious]: ['mysterious ambient music', 'enigmatic soundscape'],
+      [MusicMood.Intense]: ['intense dramatic music', 'high energy orchestral'],
+      [MusicMood.Ambient]: ['calm ambient background', 'peaceful atmospheric music']
     };
 
     return moodPrompts[mood] || ['ambient background music'];
   }
 
-  private getMoodConfig(mood: MusicMood): { bpm?: number; temperature?: number } {
-    const configs: Record<MusicMood, { bpm?: number; temperature?: number }> = {
-      [MusicMood.Tension]: { bpm: 80, temperature: 0.7 },
-      [MusicMood.Battle]: { bpm: 140, temperature: 0.9 },
-      [MusicMood.Exploration]: { bpm: 90, temperature: 0.8 },
-      [MusicMood.Somber]: { bpm: 60, temperature: 0.5 },
-      [MusicMood.Heroic]: { bpm: 120, temperature: 0.7 },
-      [MusicMood.Mysterious]: { bpm: 70, temperature: 0.9 },
-      [MusicMood.Intense]: { bpm: 160, temperature: 1.0 },
-      [MusicMood.Ambient]: { bpm: 80, temperature: 0.6 }
-    };
+  async setMood(mood: MusicMood): Promise<void> {
+    if (!this.session || this.connectionError) {
+      console.warn("Attempted to set mood without an active music session or while in connection error state.");
+      return;
+    }
 
-    return configs[mood] || { bpm: 90, temperature: 0.7 };
+    const prompts = this.getMoodPrompts(mood);
+    const weightedPrompts = prompts.map(p => ({ text: p, weight: 1.0 }));
+    
+    try {
+      await this.session.setWeightedPrompts({ weightedPrompts });
+      this.currentMood = mood;
+      logger.info(LogCategory.AUDIO, `Set Lyria mood to: ${mood}`, { prompts });
+    } catch (e: any) {
+      console.error("Failed to set music prompts:", e.message);
+      this.pause();
+    }
+  }
+
+  async play(): Promise<void> {
+    if (!this.session || this.state.playbackState === 'playing' || this.state.playbackState === 'loading') return;
+    
+    if (this.connectionError) {
+      console.log("Connection error detected, attempting to reconnect...");
+      await this.connect();
+      return;
+    }
+
+    this.initAudioContext();
+    if (this.audioContext) {
+      await this.audioContext.resume();
+    }
+    
+    await this.session.play();
+    
+    if (this.outputNode && this.audioContext) {
+      this.outputNode.gain.setValueAtTime(this.state.isMuted ? 0 : 1, this.audioContext.currentTime);
+    }
+
+    this.updateState({ playbackState: 'loading' });
+    logger.info(LogCategory.AUDIO, 'Started Lyria music playback');
+  }
+
+  async pause(): Promise<void> {
+    if (!this.session || this.state.playbackState === 'paused' || this.state.playbackState === 'stopped') return;
+    
+    await this.session.pause();
+    this.nextStartTime = 0;
+    
+    if (this.outputNode && this.audioContext) {
+      this.outputNode.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.1);
+    }
+    
+    setTimeout(() => {
+      this.updateState({ playbackState: 'paused' });
+      if (this.outputNode && this.audioContext) {
+        this.outputNode.gain.setValueAtTime(1, this.audioContext.currentTime);
+      }
+    }, 100);
+    
+    logger.info(LogCategory.AUDIO, 'Paused Lyria music playback');
+  }
+
+  async stop(): Promise<void> {
+    if (!this.session) return;
+    
+    await this.session.stop();
+    this.nextStartTime = 0;
+    
+    if (this.outputNode && this.audioContext) {
+      this.outputNode.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.1);
+    }
+    
+    setTimeout(() => {
+      this.updateState({ playbackState: 'stopped' });
+      if (this.outputNode && this.audioContext) {
+        this.outputNode.gain.setValueAtTime(1, this.audioContext.currentTime);
+      }
+    }, 100);
+    
+    logger.info(LogCategory.AUDIO, 'Stopped Lyria music playback');
   }
 
   setVolume(volume: number): void {
-    if (this.outputNode) {
-      const clampedVolume = Math.max(0, Math.min(1, volume));
-      this.outputNode.gain.linearRampToValueAtTime(
-        clampedVolume,
-        this.audioContext!.currentTime + 0.1
-      );
-      logger.debug(LogCategory.AUDIO, `Lyria volume set to ${clampedVolume}`);
+    if (this.outputNode && this.audioContext) {
+      this.outputNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
     }
+  }
+
+  toggleMute(): void {
+    if (!this.audioContext || !this.outputNode) return;
+    
+    const newMutedState = !this.state.isMuted;
+    this.outputNode.gain.linearRampToValueAtTime(newMutedState ? 0 : 1, this.audioContext.currentTime + 0.05);
+    this.updateState({ isMuted: newMutedState });
   }
 
   isConnectedToLyria(): boolean {
-    return this.isConnected;
+    return this.session !== null && !this.connectionError;
   }
 
   isCurrentlyPlaying(): boolean {
-    return this.isPlaying;
+    return this.state.playbackState === 'playing' || this.state.playbackState === 'loading';
   }
 
-  getCurrentMood(): MusicMood | null {
-    return this.currentMood;
+  addStateListener(listener: StateListener): void {
+    this.listeners.add(listener);
+    listener(this.state);
+  }
+
+  removeStateListener(listener: StateListener): void {
+    this.listeners.delete(listener);
+  }
+
+  getIsMuted(): boolean {
+    return this.state.isMuted;
   }
 
   async disconnect(): Promise<void> {
-    if (this.isPlaying) {
+    if (this.session) {
       await this.stop();
+      this.session = null;
     }
-
     if (this.audioContext) {
       await this.audioContext.close();
       this.audioContext = null;
     }
-
-    this.session = null;
-    this.outputNode = null;
-    this.isConnected = false;
-    
-    logger.info(LogCategory.AUDIO, 'Lyria service disconnected');
+    logger.info(LogCategory.AUDIO, 'Disconnected from Lyria service');
   }
 }
 
