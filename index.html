@@ -264,20 +264,7 @@
   </style></head>
 <body class="font-comic bg-gradient-to-br from-purple-600 via-pink-500 to-red-500">
   <div id="root"></div>
-  <script>
-    // Define a placeholder for process.env.GEMINI_API_KEY if not set by environment
-    // In a real deployment, this would be set by the environment
-    if (typeof process === 'undefined') {
-      window.process = { env: {} };
-    }
-    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "undefined") {
-      // THIS IS FOR DEVELOPMENT/DEMO PURPOSES ONLY.
-      // In a real application, the GEMINI_API_KEY MUST be set in the environment.
-      // Do not commit actual API keys to your repository.
-      console.warn("GEMINI_API_KEY not found in process.env. Using a placeholder. Real Gemini features will not work.");
-      process.env.GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_PLACEHOLDER"; 
-    }
-  </script>
+  
   <script type="module" src="/index.tsx"></script>
 </body>
 </html>
