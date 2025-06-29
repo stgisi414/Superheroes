@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Character, StoryLogEntry } from '../types';
 import CharacterSheet from '../CharacterSheet';
@@ -108,7 +107,7 @@ const GameView: React.FC<GameViewProps> = ({
             <div className="h-96 lg:h-[500px] mb-4">
               <StoryPanel storyLog={storyLog} isLoading={isLoading} />
             </div>
-            
+
             <div className="border-t-4 border-yellow-400 pt-4">
               <CommandInput onSubmit={handleCommandSubmit} disabled={isLoading} />
             </div>
@@ -122,7 +121,7 @@ const GameView: React.FC<GameViewProps> = ({
           <span className="font-bangers text-white text-2xl">WHOOSH!</span>
         </div>
       </div>
-      
+
       <div className="fixed top-20 right-10 z-10 pointer-events-none">
         <div className="bg-yellow-400 border-4 border-black p-3 transform -rotate-12 animate-bounce">
           <span className="font-bangers text-black text-2xl">KAPOW!</span>

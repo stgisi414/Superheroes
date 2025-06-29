@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface LandingPageProps {
@@ -39,7 +38,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartNewGame, onLoadGame, h
           >
             🌟 START NEW ADVENTURE! 🌟
           </button>
-          
+
           {hasSavedGame && (
             <button
               onClick={onLoadGame}

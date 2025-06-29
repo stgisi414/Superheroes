@@ -1,0 +1,24 @@
+
+{
+  "name": "Comic RPG Adventure",
+  "short_name": "RPG Adventure", 
+  "description": "An epic superhero RPG adventure game",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e40af",
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ],
+  "orientation": "portrait"
+}
