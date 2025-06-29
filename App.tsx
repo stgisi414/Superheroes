@@ -85,14 +85,16 @@ const App: React.FC = () => {
   }
 
   return (
-    <GameView
-      character={character}
-      setCharacter={setCharacter}
-      storyLog={storyLog}
-      setStoryLog={setStoryLog}
-      isLoading={isLoading}
-      setIsLoading={setIsLoading}
-    />
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-red-600 halftone-bg">
+      <GameView
+        character={character}
+        setCharacter={setCharacter}
+        storyLog={storyLog}
+        setStoryLog={setStoryLog}
+        isLoading={isLoading}
+        setIsLoading={setIsLoading}
+      />
+    </div>
   );
 };
 

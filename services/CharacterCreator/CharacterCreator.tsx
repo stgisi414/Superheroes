@@ -1,174 +1,194 @@
 
-import React, { useState, useCallback } from 'react';
-import { Character, CharacterStats, CharacterCreationStep } from '../../types';
-import { DEFAULT_STATS } from '../../constants';
-import { geminiService } from '../geminiService';
+import React, { useState } from 'react';
+import { Character, CharacterStats, StatName } from '../../types';
+import { DEFAULT_STATS, INITIAL_STAT_POINTS } from '../../constants';
 import Step1CoreConcept from './Step1CoreConcept';
 import Step2OriginStory from './Step2OriginStory';
 import Step3Portrait from './Step3Portrait';
 import Step4StatAllocation from './Step4StatAllocation';
-import LoadingSpinner from '../../components/ui/LoadingSpinner'; // Corrected path
-import Button from '../../components/ui/Button'; // Corrected path
 
 interface CharacterCreatorProps {
   onCharacterCreated: (character: Character) => void;
 }
 
 const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated }) => {
-  const [currentStep, setCurrentStep] = useState<CharacterCreationStep>(CharacterCreationStep.CoreConcept);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const [name, setName] = useState<string>('');
-  const [concept, setConcept] = useState<string>('');
+  const [currentStep, setCurrentStep] = useState<number>(1);
+  const [characterName, setCharacterName] = useState<string>('');
+  const [characterConcept, setCharacterConcept] = useState<string>('');
   const [originStory, setOriginStory] = useState<string>('');
   const [portraitUrl, setPortraitUrl] = useState<string>('');
-  const [portraitPrompt, setPortraitPrompt] = useState<string>('');
   const [stats, setStats] = useState<CharacterStats>(DEFAULT_STATS);
 
-  const handleNextStep = () => {
-    setError(null);
-    setCurrentStep(prev => prev + 1);
-  };
-  
-  const handlePreviousStep = () => {
-    setError(null);
-    setCurrentStep(prev => prev - 1);
-  };
+  const totalSteps = 4;
 
-  const handleCoreConceptSubmit = (charName: string, charConcept: string) => {
-    setName(charName);
-    setConcept(charConcept);
-    handleNextStep();
-    generateOriginStory(charName, charConcept);
-  };
-
-  const generateOriginStory = useCallback(async (charName: string, charConcept: string, regenerate: boolean = false) => {
-    setIsLoading(true);
-    setError(null);
-    if (regenerate) setOriginStory(''); // Clear previous story if regenerating
-
-    try {
-      const story = await geminiService.generateOriginStory(charName, charConcept);
-      setOriginStory(story);
-    } catch (err) {
-      console.error("Error generating origin story:", err);
-      setError("Failed to generate origin story. Please try again.");
-    } finally {
-      setIsLoading(false);
+  const handleNext = () => {
+    if (currentStep < totalSteps) {
+      setCurrentStep(currentStep + 1);
     }
-  }, []);
-  
-  const handleOriginStoryAccept = () => {
-    handleNextStep();
-    generatePortrait(name, concept, originStory);
   };
 
-  const generatePortrait = useCallback(async (charName: string, charConcept: string, charOrigin: string, regenerate: boolean = false) => {
-    setIsLoading(true);
-    setError(null);
-    if (regenerate) setPortraitUrl(''); // Clear previous portrait if regenerating
-    
-    try {
-      const prompt = await geminiService.generatePortraitPrompt(charName, charConcept, charOrigin);
-      setPortraitPrompt(prompt);
-      const url = await geminiService.generatePortrait(prompt);
-      setPortraitUrl(url);
-    } catch (err) {
-      console.error("Error generating portrait:", err);
-      setError("Failed to generate portrait. Please try again.");
-    } finally {
-      setIsLoading(false);
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
     }
-  }, []);
-
-  const handlePortraitAccept = () => {
-    handleNextStep();
   };
-  
-  const handleStatAllocationSubmit = (finalStats: CharacterStats) => {
-    setStats(finalStats);
-    const finalCharacter: Character = {
-      id: Date.now().toString(),
-      name,
-      concept,
-      originStory,
-      portraitUrl,
+
+  const handleComplete = (finalStats: CharacterStats) => {
+    const character: Character = {
+      name: characterName,
+      concept: characterConcept,
+      originStory: originStory,
+      portraitUrl: portraitUrl,
       stats: finalStats,
-      abilities: [], // Initialize empty, Gemini can populate later
-      inventory: [], // Initialize empty
+      health: 100,
     };
-    onCharacterCreated(finalCharacter);
+    onCharacterCreated(character);
   };
 
-  const renderStep = () => {
+  const isStepValid = () => {
     switch (currentStep) {
-      case CharacterCreationStep.CoreConcept:
-        return <Step1CoreConcept onSubmit={handleCoreConceptSubmit} initialName={name} initialConcept={concept} />;
-      case CharacterCreationStep.OriginStory:
-        return (
-          <Step2OriginStory
-            originStory={originStory}
-            isLoading={isLoading}
-            onAccept={handleOriginStoryAccept}
-            onRegenerate={() => generateOriginStory(name, concept, true)}
-          />
-        );
-      case CharacterCreationStep.Portrait:
-        return (
-          <Step3Portrait
-            portraitUrl={portraitUrl}
-            portraitPrompt={portraitPrompt}
-            isLoading={isLoading}
-            onAccept={handlePortraitAccept}
-            onRegenerate={() => generatePortrait(name, concept, originStory, true)}
-          />
-        );
-      case CharacterCreationStep.StatAllocation:
-        return <Step4StatAllocation currentStats={stats} onConfirm={handleStatAllocationSubmit} />;
+      case 1:
+        return characterName.trim() !== '' && characterConcept.trim() !== '';
+      case 2:
+        return originStory.trim() !== '';
+      case 3:
+        return true; // Portrait is optional
+      case 4:
+        return true; // Stats have default values
       default:
-        return <p>Unknown step.</p>;
+        return false;
     }
   };
 
-  const stepTitles: Record<CharacterCreationStep, string> = {
-    [CharacterCreationStep.CoreConcept]: "Step 1: Define Your Character",
-    [CharacterCreationStep.OriginStory]: "Step 2: Discover Your Origin",
-    [CharacterCreationStep.Portrait]: "Step 3: Visualize Your Persona",
-    [CharacterCreationStep.StatAllocation]: "Step 4: Assign Your Strengths",
+  const getStepIcon = (step: number) => {
+    const icons = ['🎭', '📖', '🎨', '⚡'];
+    return icons[step - 1];
+  };
+
+  const getStepTitle = (step: number) => {
+    const titles = ['HERO IDENTITY', 'ORIGIN TALE', 'PORTRAIT', 'POWER LEVELS'];
+    return titles[step - 1];
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col items-center justify-center p-4 selection:bg-cyan-500 selection:text-white">
-      <div className="bg-slate-800 p-6 md:p-10 rounded-xl shadow-2xl w-full max-w-2xl">
-        <h1 className="text-3xl md:text-4xl font-bold text-center mb-2 text-cyan-400 font-orbitron">Create Your Legend</h1>
-        <p className="text-center text-slate-400 mb-8">{stepTitles[currentStep]}</p>
-        
-        {error && <p className="text-red-400 bg-red-900 p-3 rounded-md text-center mb-4">{error}</p>}
-        {isLoading && currentStep !== CharacterCreationStep.OriginStory && currentStep !== CharacterCreationStep.Portrait && (
-          <div className="my-8"> {/* Ensure loading spinner is visible when not part of step content */}
-            <LoadingSpinner text="Processing..." />
+    <div className="min-h-screen p-4 bg-gradient-to-br from-blue-600 via-purple-600 to-red-600 halftone-bg">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="font-bangers text-6xl pow-text mb-4">
+            CREATE YOUR HERO!
+          </h1>
+          <div className="bg-yellow-300 border-4 border-black inline-block p-3 transform -rotate-1">
+            <span className="font-comic text-black font-bold text-xl">
+              STEP {currentStep} OF {totalSteps}
+            </span>
           </div>
-        )}
-        
-        <div className="min-h-[300px]"> {/* Ensure consistent height for step content */}
-          {renderStep()}
         </div>
 
-        <div className="mt-8 flex justify-between items-center">
-          <Button 
-            onClick={handlePreviousStep} 
-            disabled={currentStep === CharacterCreationStep.CoreConcept || isLoading}
-            variant="secondary"
-          >
-            Back
-          </Button>
-          {/* "Next" button is typically handled within each step component for validation */}
+        {/* Progress Steps */}
+        <div className="flex justify-center mb-8">
+          <div className="flex space-x-4">
+            {[1, 2, 3, 4].map((step) => (
+              <div
+                key={step}
+                className={`comic-panel p-4 flex flex-col items-center space-y-2 transition-all ${
+                  step === currentStep 
+                    ? 'transform scale-110 bg-yellow-200' 
+                    : step < currentStep 
+                      ? 'bg-green-200' 
+                      : 'bg-gray-200'
+                }`}
+              >
+                <span className="text-3xl">{getStepIcon(step)}</span>
+                <span className="font-bangers text-sm text-black">
+                  {getStepTitle(step)}
+                </span>
+                {step < currentStep && (
+                  <div className="bg-green-500 border-2 border-black rounded-full w-6 h-6 flex items-center justify-center">
+                    <span className="text-white font-bold">✓</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Step Content */}
+        <div className="comic-panel-dark p-8 mb-8 animate-comic-pop">
+          {currentStep === 1 && (
+            <Step1CoreConcept
+              name={characterName}
+              setName={setCharacterName}
+              concept={characterConcept}
+              setConcept={setCharacterConcept}
+              onNext={handleNext}
+            />
+          )}
+          
+          {currentStep === 2 && (
+            <Step2OriginStory
+              originStory={originStory}
+              setOriginStory={setOriginStory}
+              onNext={handleNext}
+              onBack={handleBack}
+            />
+          )}
+          
+          {currentStep === 3 && (
+            <Step3Portrait
+              portraitUrl={portraitUrl}
+              setPortraitUrl={setPortraitUrl}
+              characterName={characterName}
+              characterConcept={characterConcept}
+              onNext={handleNext}
+              onBack={handleBack}
+            />
+          )}
+          
+          {currentStep === 4 && (
+            <Step4StatAllocation
+              stats={stats}
+              setStats={setStats}
+              onConfirm={handleComplete}
+              onBack={handleBack}
+            />
+          )}
+        </div>
+
+        {/* Navigation for non-final steps */}
+        {currentStep < totalSteps && (
+          <div className="flex justify-between">
+            <button
+              onClick={handleBack}
+              disabled={currentStep === 1}
+              className="comic-button-secondary px-6 py-3 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ← BACK
+            </button>
+            
+            <button
+              onClick={handleNext}
+              disabled={!isStepValid()}
+              className="comic-button px-6 py-3 text-black font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              NEXT →
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Decorative comic elements */}
+      <div className="fixed bottom-10 left-10 pointer-events-none">
+        <div className="bg-blue-500 border-4 border-black p-3 transform rotate-12 animate-pulse">
+          <span className="font-bangers text-white text-xl">BOOM!</span>
         </div>
       </div>
-      <footer className="mt-8 text-center text-sm text-slate-500">
-        <p>&copy; {new Date().getFullYear()} Gemini RPG Orchestrator. All rights reserved (simulated).</p>
-      </footer>
+      
+      <div className="fixed bottom-20 right-10 pointer-events-none">
+        <div className="bg-red-500 border-4 border-black p-3 transform -rotate-12 animate-bounce">
+          <span className="font-bangers text-white text-xl">POW!</span>
+        </div>
+      </div>
     </div>
   );
 };

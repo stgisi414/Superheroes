@@ -2,44 +2,53 @@
 import React from 'react';
 
 interface LoadingSpinnerProps {
-  size?: 'sm' | 'md' | 'lg';
-  text?: string;
+  size?: 'small' | 'medium' | 'large';
   className?: string;
 }
 
-const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'md', text, className = '' }) => {
-  const sizeClasses = {
-    sm: 'h-6 w-6',
-    md: 'h-10 w-10',
-    lg: 'h-16 w-16',
+const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'medium', className = '' }) => {
+  const getSizeClasses = () => {
+    switch (size) {
+      case 'small':
+        return 'w-6 h-6';
+      case 'large':
+        return 'w-16 h-16';
+      default:
+        return 'w-10 h-10';
+    }
   };
 
   return (
-    <div className={`flex flex-col items-center justify-center ${className}`}>
-      <svg
-        className={`animate-spin text-cyan-500 ${sizeClasses[size]}`}
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-      >
-        <circle
-          className="opacity-25"
-          cx="12"
-          cy="12"
-          r="10"
-          stroke="currentColor"
-          strokeWidth="4"
-        ></circle>
-        <path
-          className="opacity-75"
-          fill="currentColor"
-          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-        ></path>
-      </svg>
-      {text && <p className="mt-2 text-slate-300">{text}</p>}
+    <div className={`flex items-center justify-center ${className}`}>
+      <div className="relative">
+        {/* Main spinning element */}
+        <div className={`${getSizeClasses()} border-4 border-black border-t-yellow-400 border-r-red-400 border-b-blue-400 border-l-green-400 rounded-full animate-spin`} />
+        
+        {/* Comic book style "loading" effects */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center">
+            <div className="font-bangers text-yellow-400 text-xs animate-pulse">
+              ZAP!
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Loading text */}
+      <div className="ml-3 font-comic font-bold text-lg animate-pulse">
+        <span className="text-red-500">L</span>
+        <span className="text-yellow-400">O</span>
+        <span className="text-green-400">A</span>
+        <span className="text-blue-500">D</span>
+        <span className="text-purple-500">I</span>
+        <span className="text-pink-500">N</span>
+        <span className="text-orange-500">G</span>
+        <span className="text-red-500">.</span>
+        <span className="text-yellow-400">.</span>
+        <span className="text-green-400">.</span>
+      </div>
     </div>
   );
 };
 
 export default LoadingSpinner;
-    
