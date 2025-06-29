@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
       server: {
         host: true,
         port: 5173,
-        allowedHosts: ['', 'superhearoesare.cool', 'superheroez.replit.app']
+        allowedHosts: ['dc6fd3fc-1ae9-41e5-b6a6-cdd53582d9eb-00-1akqpj7omovi5.riker.replit.dev', 'superhearoesare.cool', 'superheroez.replit.app']
       },
       preview: {
         host: '0.0.0.0',
