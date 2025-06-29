@@ -140,6 +140,11 @@ class BGMService {
 
   private async generateMoodBasedAudio(track: LyraTrack): Promise<void> {
     try {
+      // Clean up any existing audio context
+      if (this.audioContext) {
+        this.audioContext.close();
+      }
+      
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       
       // Ensure AudioContext is running
@@ -147,32 +152,35 @@ class BGMService {
         await this.audioContext.resume();
       }
       
-      const gainNode = this.audioContext.createGain();
-      gainNode.connect(this.audioContext.destination);
+      const masterGain = this.audioContext.createGain();
+      masterGain.connect(this.audioContext.destination);
+      
+      // Start with silence and fade in
+      masterGain.gain.setValueAtTime(0, this.audioContext.currentTime);
       
       // Generate audio based on mood
       switch (track.mood) {
         case MusicMood.Heroic:
-          this.generateHeroicTheme(gainNode);
+          this.generateHeroicTheme(masterGain);
           break;
         case MusicMood.Mysterious:
-          this.generateMysteriousAmbience(gainNode);
+          this.generateMysteriousAmbience(masterGain);
           break;
         case MusicMood.Ambient:
-          this.generateAmbientSounds(gainNode);
+          this.generateAmbientSounds(masterGain);
           break;
         case MusicMood.Intense:
-          this.generateIntenseMusic(gainNode);
+          this.generateIntenseMusic(masterGain);
           break;
         default:
-          this.generateAmbientSounds(gainNode);
+          this.generateAmbientSounds(masterGain);
       }
       
-      // Fade in
-      gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
-      gainNode.gain.linearRampToValueAtTime(track.volume * this.volume, this.audioContext.currentTime + 2);
+      // Fade in to audible volume
+      const targetVolume = track.volume * this.volume * 0.5; // Reduce volume to prevent it being too loud
+      masterGain.gain.linearRampToValueAtTime(targetVolume, this.audioContext.currentTime + 1.5);
       
-      logger.info('BGM_SERVICE', `Generated ${track.mood} mood audio`);
+      logger.info('BGM_SERVICE', `Generated ${track.mood} mood audio at volume ${targetVolume}`);
       
     } catch (error) {
       logger.error('BGM_SERVICE', 'Failed to generate mood-based audio', { error });
@@ -183,21 +191,56 @@ class BGMService {
   private generateHeroicTheme(gainNode: GainNode): void {
     if (!this.audioContext) return;
     
-    // Major chord progression with bright tones
-    const frequencies = [261.63, 329.63, 392.00]; // C-E-G major chord
-    frequencies.forEach((freq, index) => {
+    // Create a more complex heroic theme with bass and melody
+    const now = this.audioContext.currentTime;
+    
+    // Bass line - root notes
+    const bassFreq = 130.81; // C3
+    const bassOsc = this.audioContext.createOscillator();
+    const bassGain = this.audioContext.createGain();
+    
+    bassOsc.connect(bassGain);
+    bassGain.connect(gainNode);
+    bassOsc.frequency.setValueAtTime(bassFreq, now);
+    bassOsc.type = 'sine';
+    bassGain.gain.setValueAtTime(0.4, now);
+    bassOsc.start();
+    
+    // Heroic chord progression - major chords
+    const chordFreqs = [261.63, 329.63, 392.00, 523.25]; // C4-E4-G4-C5
+    chordFreqs.forEach((freq, index) => {
       const oscillator = this.audioContext!.createOscillator();
       const oscGain = this.audioContext!.createGain();
       
       oscillator.connect(oscGain);
       oscGain.connect(gainNode);
       
-      oscillator.frequency.setValueAtTime(freq, this.audioContext!.currentTime);
+      oscillator.frequency.setValueAtTime(freq, now);
       oscillator.type = 'triangle';
-      oscGain.gain.setValueAtTime(0.3 / frequencies.length, this.audioContext!.currentTime);
+      oscGain.gain.setValueAtTime(0.15, now);
+      
+      // Add slight detuning for richness
+      oscillator.detune.setValueAtTime((index - 2) * 2, now);
       
       oscillator.start();
     });
+    
+    // Add a simple melody line
+    const melodyOsc = this.audioContext.createOscillator();
+    const melodyGain = this.audioContext.createGain();
+    
+    melodyOsc.connect(melodyGain);
+    melodyGain.connect(gainNode);
+    melodyOsc.type = 'sawtooth';
+    melodyGain.gain.setValueAtTime(0.1, now);
+    
+    // Simple heroic melody pattern
+    melodyOsc.frequency.setValueAtTime(523.25, now); // C5
+    melodyOsc.frequency.setValueAtTime(659.25, now + 0.5); // E5
+    melodyOsc.frequency.setValueAtTime(783.99, now + 1.0); // G5
+    melodyOsc.frequency.setValueAtTime(1046.50, now + 1.5); // C6
+    
+    melodyOsc.start();
   }
 
   private generateMysteriousAmbience(gainNode: GainNode): void {
@@ -225,21 +268,56 @@ class BGMService {
   private generateAmbientSounds(gainNode: GainNode): void {
     if (!this.audioContext) return;
     
-    // Soft, peaceful drones
-    const frequencies = [220, 330, 440]; // A-E-A
+    const now = this.audioContext.currentTime;
+    
+    // Create layered ambient drones with slow modulation
+    const frequencies = [110, 165, 220, 330]; // A2-E3-A3-E4
+    
     frequencies.forEach((freq, index) => {
       const oscillator = this.audioContext!.createOscillator();
       const oscGain = this.audioContext!.createGain();
+      const lfo = this.audioContext!.createOscillator();
+      const lfoGain = this.audioContext!.createGain();
+      
+      // Set up LFO for gentle modulation
+      lfo.connect(lfoGain);
+      lfoGain.connect(oscGain.gain);
+      lfo.frequency.setValueAtTime(0.1 + index * 0.05, now); // Slow modulation
+      lfoGain.gain.setValueAtTime(0.02, now); // Subtle effect
       
       oscillator.connect(oscGain);
       oscGain.connect(gainNode);
       
-      oscillator.frequency.setValueAtTime(freq, this.audioContext!.currentTime);
+      oscillator.frequency.setValueAtTime(freq, now);
       oscillator.type = 'sine';
-      oscGain.gain.setValueAtTime(0.2 / frequencies.length, this.audioContext!.currentTime);
+      oscGain.gain.setValueAtTime(0.15, now);
+      
+      // Add gentle detuning for organic feel
+      oscillator.detune.setValueAtTime((index - 1.5) * 3, now);
       
       oscillator.start();
+      lfo.start();
     });
+    
+    // Add subtle high-frequency shimmer
+    const shimmerOsc = this.audioContext.createOscillator();
+    const shimmerGain = this.audioContext.createGain();
+    const shimmerLfo = this.audioContext.createOscillator();
+    const shimmerLfoGain = this.audioContext.createGain();
+    
+    shimmerLfo.connect(shimmerLfoGain);
+    shimmerLfoGain.connect(shimmerGain.gain);
+    shimmerOsc.connect(shimmerGain);
+    shimmerGain.connect(gainNode);
+    
+    shimmerOsc.frequency.setValueAtTime(880, now); // A5
+    shimmerOsc.type = 'triangle';
+    shimmerGain.gain.setValueAtTime(0.05, now);
+    shimmerLfo.frequency.setValueAtTime(0.3, now);
+    shimmerLfoGain.gain.setValueAtTime(0.03, now);
+    
+    shimmerOsc.start();
+    shimmerLfo.start();
   }
 
   private generateIntenseMusic(gainNode: GainNode): void {
@@ -337,6 +415,12 @@ class BGMService {
     this.volume = Math.max(0, Math.min(1, volume));
     if (this.currentAudio) {
       this.currentAudio.volume = this.volume;
+    }
+    
+    // Also update Web Audio API volume if context exists
+    if (this.audioContext && this.audioContext.destination) {
+      // Note: We can't directly control destination volume, but this is logged for debugging
+      logger.info('BGM_SERVICE', `Volume set to ${this.volume}`);
     }
   }
 
