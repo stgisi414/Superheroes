@@ -3,14 +3,22 @@ import React, { useState } from 'react';
 import Button from '../../components/ui/Button'; // Corrected path
 
 interface Step1CoreConceptProps {
+  name: string;
+  setName: (name: string) => void;
+  concept: string;
+  setConcept: (concept: string) => void;
+  onNext: () => void;
   onSubmit: (name: string, concept: string) => void;
-  initialName?: string;
-  initialConcept?: string;
 }
 
-const Step1CoreConcept: React.FC<Step1CoreConceptProps> = ({ onSubmit, initialName = '', initialConcept = '' }) => {
-  const [name, setName] = useState<string>(initialName);
-  const [concept, setConcept] = useState<string>(initialConcept);
+const Step1CoreConcept: React.FC<Step1CoreConceptProps> = ({ 
+  name, 
+  setName, 
+  concept, 
+  setConcept, 
+  onNext, 
+  onSubmit 
+}) => {
   const [error, setError] = useState<string>('');
 
   const handleSubmit = (e: React.FormEvent) => {
