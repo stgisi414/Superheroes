@@ -27,17 +27,21 @@ const App: React.FC = () => {
 
   // Handle BGM changes based on app state
   useEffect(() => {
-    switch (appState) {
-      case AppState.Landing:
-        bgmService.playForSection(GameSection.MainMenu);
-        break;
-      case AppState.CharacterCreation:
-        bgmService.playForSection(GameSection.CharacterCreation);
-        break;
-      case AppState.Playing:
-        bgmService.playForSection(GameSection.NormalGameplay);
-        break;
-    }
+    const playBGMForState = async () => {
+      switch (appState) {
+        case AppState.Landing:
+          await bgmService.playForSection(GameSection.MainMenu);
+          break;
+        case AppState.CharacterCreation:
+          await bgmService.playForSection(GameSection.CharacterCreation);
+          break;
+        case AppState.Playing:
+          await bgmService.playForSection(GameSection.NormalGameplay);
+          break;
+      }
+    };
+    
+    playBGMForState();
   }, [appState]);
 
   const handleStartNewGame = () => {

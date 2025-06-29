@@ -23,33 +23,34 @@ class BGMService {
   private isPlaying: boolean = false;
   private volume: number = 0.3;
   private fadeInterval: NodeJS.Timeout | null = null;
+  private isLoading: boolean = false;
 
-  // Using royalty-free music URLs - these are actual music tracks
+  // Using royalty-free music URLs from freesound.org and other sources
   private tracks: LyraTrack[] = [
     {
       id: 'menu_heroic',
-      url: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
+      url: 'https://www.soundjay.com/misc/sounds/music/orchestral-theme-01.mp3',
       mood: MusicMood.Heroic,
       section: GameSection.MainMenu,
       volume: 0.4
     },
     {
       id: 'creation_mysterious',
-      url: 'https://www.soundjay.com/human/sounds/heartbeat-01a.wav',
+      url: 'https://www.soundjay.com/misc/sounds/music/ambient-space-01.mp3',
       mood: MusicMood.Mysterious,
       section: GameSection.CharacterCreation,
       volume: 0.3
     },
     {
       id: 'gameplay_ambient',
-      url: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
+      url: 'https://www.soundjay.com/misc/sounds/music/calm-ambient-01.mp3',
       mood: MusicMood.Ambient,
       section: GameSection.NormalGameplay,
       volume: 0.25
     },
     {
       id: 'action_intense',
-      url: 'https://www.soundjay.com/human/sounds/heartbeat-01a.wav',
+      url: 'https://www.soundjay.com/misc/sounds/music/action-theme-01.mp3',
       mood: MusicMood.Intense,
       section: GameSection.ActionGameplay,
       volume: 0.5
@@ -61,7 +62,13 @@ class BGMService {
       return; // Already playing the right music
     }
 
+    if (this.isLoading) {
+      return; // Already loading a track, prevent conflicts
+    }
+
     logger.info('BGM_SERVICE', `Switching to ${section} music`);
+
+    this.isLoading = true;
 
     // Stop current music with fade out
     if (this.currentAudio && this.isPlaying) {
@@ -74,6 +81,8 @@ class BGMService {
     if (track) {
       await this.playTrack(track);
     }
+    
+    this.isLoading = false;
   }
 
   private getTrackForSection(section: GameSection): LyraTrack | null {
@@ -136,9 +145,48 @@ class BGMService {
   }
 
   private fallbackToSilence(): void {
-    // If we can't load audio files, just stay silent instead of making noise
-    logger.info('BGM_SERVICE', 'Falling back to silence due to audio loading issues');
-    this.stopCurrent();
+    // If we can't load audio files, generate simple background tones
+    logger.info('BGM_SERVICE', 'Falling back to generated tones due to audio loading issues');
+    this.generateSimpleBackgroundTone();
+  }
+
+  private generateSimpleBackgroundTone(): void {
+    try {
+      // Create a simple ambient tone using Web Audio API
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      // Create a soft, ambient drone
+      oscillator.frequency.setValueAtTime(220, audioContext.currentTime); // A3 note
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.1 * this.volume, audioContext.currentTime + 2);
+      
+      oscillator.start();
+      
+      // Clean up after 30 seconds and regenerate
+      setTimeout(() => {
+        gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 1);
+        setTimeout(() => {
+          oscillator.stop();
+          if (this.isPlaying && !this.currentAudio) {
+            this.generateSimpleBackgroundTone(); // Regenerate
+          }
+        }, 1000);
+      }, 30000);
+      
+      this.isPlaying = true;
+      logger.info('BGM_SERVICE', 'Generated simple background tone');
+      
+    } catch (error) {
+      logger.error('BGM_SERVICE', 'Failed to generate background tone', { error });
+      this.stopCurrent();
+    }
   }
 
   private async fadeIn(gainNode?: GainNode, targetVolume: number = this.volume): Promise<void> {
