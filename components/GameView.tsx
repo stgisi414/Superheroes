@@ -24,48 +24,76 @@ const GameView: React.FC<GameViewProps> = ({
   setIsLoading,
 }) => {
   const handleCommandSubmit = async (command: string) => {
+    if (!character) return;
+
     setIsLoading(true);
-    const userEntry: StoryLogEntry = { 
-      type: 'system_message', 
-      content: command, 
-      id: Date.now().toString() 
-    };
+    const userEntry: StoryLogEntry = { type: 'user', content: command, id: Date.now().toString() };
     setStoryLog(prev => [...prev, userEntry]);
 
-    try {
-      await geminiService.streamGameResponse(
-        command,
-        character,
-        (chunk) => {
-          if (chunk.narrativePart) {
-            setStoryLog(prevLog => {
-              const lastEntry = prevLog[prevLog.length - 1];
-              if (lastEntry && lastEntry.type === 'text' && chunk.streamId && lastEntry.streamId === chunk.streamId) {
-                return [...prevLog.slice(0, -1), { ...lastEntry, content: lastEntry.content + chunk.narrativePart }];
-              }
-              return [...prevLog, { 
-                type: 'text', 
-                content: chunk.narrativePart as string, 
-                id: Date.now().toString() + Math.random(), 
-                streamId: chunk.streamId 
-              }];
-            });
-          }
-          if (chunk.updatedCharacter) {
-            setCharacter(chunk.updatedCharacter);
-          }
-        }
-      );
+    // Detect action commands and switch to action music
+    const actionKeywords = ['attack', 'fight', 'battle', 'combat', 'strike', 'punch', 'kick', 'shoot', 'cast', 'defend'];
+    const isActionCommand = actionKeywords.some(keyword => command.toLowerCase().includes(keyword));
 
-      // Save game state
-      saveGame({ character });
+    if (isActionCommand) {
+      bgmService.playForSection(GameSection.ActionGameplay);
+    }
+
+    try {
+      const stream = await geminiService.submitPlayerAction(character, command, storyLog);
+
+      let hasActionContent = false;
+
+      for await (const chunk of stream) {
+        if (chunk.textUpdate) {
+          // Check if the response contains action content
+          const actionIndicators = ['battle', 'fight', 'combat', 'attack', 'enemy', 'damage', 'health'];
+          if (actionIndicators.some(indicator => chunk.textUpdate!.fullText.toLowerCase().includes(indicator))) {
+            hasActionContent = true;
+          }
+
+          setStoryLog(prev => {
+            const newLog = [...prev];
+            const lastEntry = newLog[newLog.length - 1];
+
+            if (lastEntry && lastEntry.type === 'text' && lastEntry.id === chunk.textUpdate!.entryId) {
+              lastEntry.content = chunk.textUpdate!.fullText;
+            } else {
+              newLog.push({
+                type: 'text',
+                content: chunk.textUpdate!.fullText,
+                id: chunk.textUpdate!.entryId
+              });
+            }
+
+            return newLog;
+          });
+        }
+
+        if (chunk.characterUpdate) {
+          setCharacter(prev => prev ? { ...prev, ...chunk.characterUpdate } : null);
+        }
+      }
+
+      // Return to normal gameplay music if no action content was generated
+      if (!hasActionContent && !isActionCommand) {
+        setTimeout(() => {
+          bgmService.playForSection(GameSection.NormalGameplay);
+        }, 2000); // Wait 2 seconds before transitioning back
+      }
+
+      const gameState: GameState = {
+        character: character,
+      };
+      saveGame(gameState);
+
     } catch (error) {
-      console.error("Error processing command:", error);
-      setStoryLog(prev => [...prev, { 
-        type: 'error', 
-        content: 'Error processing your action.', 
-        id: Date.now().toString() 
-      }]);
+      console.error('Error submitting action:', error);
+      const errorEntry: StoryLogEntry = { 
+        type: 'text', 
+        content: 'Something went wrong. Please try again.', 
+        id: (Date.now() + 1).toString() 
+      };
+      setStoryLog(prev => [...prev, errorEntry]);
     } finally {
       setIsLoading(false);
     }

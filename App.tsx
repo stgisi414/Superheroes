@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Character, GameState as AppState, StoryLogEntry } from './types';
+import { Character, GameState as AppState, StoryLogEntry, GameSection } from './types';
 import CharacterCreator from './services/CharacterCreator/CharacterCreator';
 import GameView from './components/GameView';
 import LandingPage from './components/LandingPage';
 import { geminiService } from './services/geminiService';
 import { loadGame, saveGame, GameState } from './services/localStorageService';
 import { logger } from './services/logger';
+import { bgmService } from './services/bgmService';
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.Landing);
@@ -19,7 +20,25 @@ const App: React.FC = () => {
     if (savedGame) {
       setHasSavedGame(true);
     }
+    
+    // Start main menu music
+    bgmService.playForSection(GameSection.MainMenu);
   }, []);
+
+  // Handle BGM changes based on app state
+  useEffect(() => {
+    switch (appState) {
+      case AppState.Landing:
+        bgmService.playForSection(GameSection.MainMenu);
+        break;
+      case AppState.CharacterCreation:
+        bgmService.playForSection(GameSection.CharacterCreation);
+        break;
+      case AppState.Playing:
+        bgmService.playForSection(GameSection.NormalGameplay);
+        break;
+    }
+  }, [appState]);
 
   const handleStartNewGame = () => {
     logger.info('APP_STATE', 'Transitioning to Character Creation');

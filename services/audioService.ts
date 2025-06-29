@@ -1,14 +1,15 @@
 
 // Simulates interactions with audio services like Lyria and Google Cloud TTS.
 import { MusicMood, VoiceProfile } from '../types';
+import { bgmService } from './bgmService';
 
 class AudioService {
   private currentTTSAudio: HTMLAudioElement | null = null;
 
   playBackgroundMusic(mood: MusicMood): void {
-    // In a real app, this would interact with Lyria API or a music library.
-    console.log(`[AudioService] Simulating: Changing background music mood to: ${mood}`);
-    // Example: postMessage to a web worker managing Howler.js or an AudioContext.
+    // Delegate mood transitions to BGM service
+    console.log(`[AudioService] Requesting mood transition to: ${mood}`);
+    bgmService.transitionToMood(mood);
   }
 
   async speakText(text: string, voiceProfile: VoiceProfile): Promise<HTMLAudioElement> {

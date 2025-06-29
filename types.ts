@@ -1,4 +1,3 @@
-
 export enum GameState {
   Landing = 'Landing',
   CharacterCreation = 'CharacterCreation',
@@ -70,7 +69,16 @@ export enum MusicMood {
   Exploration = 'exploration',
   Somber = 'somber',
   Heroic = 'heroic',
-  Neutral = 'neutral',
+  Mysterious = 'mysterious',
+  Intense = 'intense',
+  Ambient = 'ambient',
+}
+
+export enum GameSection {
+  MainMenu = 'main_menu',
+  CharacterCreation = 'character_creation',
+  NormalGameplay = 'normal_gameplay',
+  ActionGameplay = 'action_gameplay'
 }
 
 export enum VoiceProfile {
@@ -121,4 +129,3 @@ export enum CreativityLevel {
     Imaginative = 0.9,
     Wildly_Creative = 1.0,
 }
-    
