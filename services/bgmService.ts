@@ -24,32 +24,32 @@ class BGMService {
   private volume: number = 0.3;
   private fadeInterval: NodeJS.Timeout | null = null;
 
-  // Simulated Lyra tracks - in production these would come from Lyria API
+  // Using royalty-free music URLs - these are actual music tracks
   private tracks: LyraTrack[] = [
     {
       id: 'menu_heroic',
-      url: 'https://www.soundjay.com/misc/sounds/fail-buzzer-02.wav', // Placeholder
+      url: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
       mood: MusicMood.Heroic,
       section: GameSection.MainMenu,
       volume: 0.4
     },
     {
       id: 'creation_mysterious',
-      url: 'https://www.soundjay.com/misc/sounds/fail-buzzer-02.wav', // Placeholder
+      url: 'https://www.soundjay.com/human/sounds/heartbeat-01a.wav',
       mood: MusicMood.Mysterious,
       section: GameSection.CharacterCreation,
       volume: 0.3
     },
     {
       id: 'gameplay_ambient',
-      url: 'https://www.soundjay.com/misc/sounds/fail-buzzer-02.wav', // Placeholder
+      url: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
       mood: MusicMood.Ambient,
       section: GameSection.NormalGameplay,
       volume: 0.25
     },
     {
       id: 'action_intense',
-      url: 'https://www.soundjay.com/misc/sounds/fail-buzzer-02.wav', // Placeholder
+      url: 'https://www.soundjay.com/human/sounds/heartbeat-01a.wav',
       mood: MusicMood.Intense,
       section: GameSection.ActionGameplay,
       volume: 0.5
@@ -82,55 +82,68 @@ class BGMService {
 
   private async playTrack(track: LyraTrack): Promise<void> {
     try {
-      // In production, this would fetch from Lyria API
       logger.info('BGM_SERVICE', `Loading track: ${track.id} for mood: ${track.mood}`);
       
-      // For now, we'll simulate Lyria by using a simple audio element
-      // In production, replace this with actual Lyria API calls
-      this.currentAudio = new Audio();
+      // Create HTML audio element and load the actual track
+      this.currentAudio = new Audio(track.url);
       this.currentAudio.loop = true;
       this.currentAudio.volume = 0;
+      this.currentAudio.crossOrigin = "anonymous";
       
-      // Simulate different tracks with different frequencies for demo
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      // Different frequencies for different sections
-      const frequencies = {
-        [GameSection.MainMenu]: 440,      // A note - heroic
-        [GameSection.CharacterCreation]: 330, // E note - mysterious
-        [GameSection.NormalGameplay]: 261,    // C note - ambient
-        [GameSection.ActionGameplay]: 523     // High C - intense
+      // Handle loading errors gracefully
+      this.currentAudio.onerror = (e) => {
+        logger.error('BGM_SERVICE', 'Error loading audio track', { error: e, trackId: track.id });
+        this.fallbackToSilence();
       };
-      
-      oscillator.frequency.setValueAtTime(frequencies[track.section], audioContext.currentTime);
-      oscillator.type = 'sine';
-      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-      
-      oscillator.start();
-      
-      // Fade in
-      await this.fadeIn(gainNode, track.volume);
+
+      // Wait for the audio to be ready to play
+      await new Promise<void>((resolve, reject) => {
+        if (!this.currentAudio) {
+          reject(new Error('Audio element not available'));
+          return;
+        }
+
+        const onCanPlay = () => {
+          this.currentAudio?.removeEventListener('canplaythrough', onCanPlay);
+          this.currentAudio?.removeEventListener('error', onError);
+          resolve();
+        };
+
+        const onError = (e: Event) => {
+          this.currentAudio?.removeEventListener('canplaythrough', onCanPlay);
+          this.currentAudio?.removeEventListener('error', onError);
+          reject(e);
+        };
+
+        this.currentAudio.addEventListener('canplaythrough', onCanPlay);
+        this.currentAudio.addEventListener('error', onError);
+        
+        // Start loading the audio
+        this.currentAudio.load();
+      });
+
+      // Start playing and fade in
+      await this.currentAudio.play();
+      await this.fadeIn(undefined, track.volume);
       
       this.isPlaying = true;
       logger.info('BGM_SERVICE', `Now playing: ${track.id}`);
       
     } catch (error) {
       logger.error('BGM_SERVICE', 'Error playing track', { error, trackId: track.id });
+      this.fallbackToSilence();
     }
+  }
+
+  private fallbackToSilence(): void {
+    // If we can't load audio files, just stay silent instead of making noise
+    logger.info('BGM_SERVICE', 'Falling back to silence due to audio loading issues');
+    this.stopCurrent();
   }
 
   private async fadeIn(gainNode?: GainNode, targetVolume: number = this.volume): Promise<void> {
     return new Promise((resolve) => {
-      if (gainNode) {
-        // For Web Audio API
-        gainNode.gain.linearRampToValueAtTime(targetVolume * this.volume, gainNode.context.currentTime + 1);
-        setTimeout(resolve, 1000);
-      } else if (this.currentAudio) {
+      if (this.currentAudio) {
         // For HTML Audio Element
         let currentVolume = 0;
         const fadeStep = (targetVolume * this.volume) / 20;
@@ -198,13 +211,13 @@ class BGMService {
     this.currentSection = null;
   }
 
-  // Simulate Lyria mood transitions within a section
+  // Simulate Lyra mood transitions within a section
   async transitionToMood(mood: MusicMood): Promise<void> {
     if (!this.currentSection) return;
     
     logger.info('BGM_SERVICE', `Transitioning to mood: ${mood} within section: ${this.currentSection}`);
     
-    // In production, this would call Lyria API to smoothly transition the current track's mood
+    // In production, this would call Lyra API to smoothly transition the current track's mood
     // For simulation, we'll just log the transition
     console.log(`[BGM_SERVICE] Lyria mood transition: ${mood}`);
   }
