@@ -16,13 +16,29 @@ const App: React.FC = () => {
   const [hasSavedGame, setHasSavedGame] = useState<boolean>(false);
 
   useEffect(() => {
-    const savedGame = loadGame();
-    if (savedGame) {
-      setHasSavedGame(true);
-    }
-    
-    // Start main menu music
-    bgmService.playForSection(GameSection.MainMenu);
+    const initializeApp = async () => {
+      // Initialize audio service (includes Lyria if available)
+      try {
+        await audioService.initialize();
+      } catch (error) {
+        console.warn('Audio service initialization failed:', error);
+      }
+
+      // Load saved game
+      const savedGame = loadGame();
+      if (savedGame?.character) {
+        setCharacter(savedGame.character);
+        setStoryLog(savedGame.storyLog || []);
+        setAppState(AppState.GameView);
+      }
+    };
+
+    initializeApp();
+
+    // Cleanup on unmount
+    return () => {
+      audioService.shutdown();
+    };
   }, []);
 
   // Handle BGM changes based on app state
@@ -40,7 +56,7 @@ const App: React.FC = () => {
           break;
       }
     };
-    
+
     playBGMForState();
   }, [appState]);
 
@@ -53,7 +69,7 @@ const App: React.FC = () => {
     // Add event listeners for user interaction
     document.addEventListener('click', handleUserInteraction, { once: true });
     document.addEventListener('keydown', handleUserInteraction, { once: true });
-    
+
     return () => {
       document.removeEventListener('click', handleUserInteraction);
       document.removeEventListener('keydown', handleUserInteraction);
@@ -139,3 +155,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+```

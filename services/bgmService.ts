@@ -447,6 +447,26 @@ class BGMService {
     console.log(`[BGM_SERVICE] Lyria mood transition: ${mood}`);
   }
 
+  async playForMood(mood: MusicMood): Promise<void> {
+    logger.info('BGM_SERVICE', `Playing background music for mood: ${mood}`);
+    
+    // Map mood to section for fallback BGM
+    const moodToSection: Record<MusicMood, GameSection> = {
+      [MusicMood.Heroic]: GameSection.MainMenu,
+      [MusicMood.Battle]: GameSection.ActionGameplay,
+      [MusicMood.Tension]: GameSection.ActionGameplay,
+      [MusicMood.Exploration]: GameSection.NormalGameplay,
+      [MusicMood.Mysterious]: GameSection.NormalGameplay,
+      [MusicMood.Somber]: GameSection.NormalGameplay,
+      [MusicMood.Intense]: GameSection.ActionGameplay,
+      [MusicMood.Ambient]: GameSection.NormalGameplay,
+    };
+
+    const section = moodToSection[mood] || GameSection.NormalGameplay;
+    await this.playForSection(section);
+    await this.transitionToMood(mood);
+  }
+
   getCurrentSection(): GameSection | null {
     return this.currentSection;
   }

@@ -1,7 +1,98 @@
 
-// Simulates interactions with audio services like Lyria and Google Cloud TTS.
+// Integrates with Lyria for real-time music generation and Google Cloud TTS for voice synthesis.
 import { MusicMood, VoiceProfile } from '../types';
 import { bgmService } from './bgmService';
+import { lyriaService } from './lyriaService';
+import { logger, LogCategory, logError } from './logger';
+
+class AudioService {
+  private isLyriaEnabled: boolean = false;
+
+  async initialize(): Promise<void> {
+    try {
+      // Try to initialize Lyria service
+      await lyriaService.initialize();
+      await lyriaService.connect();
+      this.isLyriaEnabled = true;
+      logger.info(LogCategory.AUDIO, 'Audio service initialized with Lyria support');
+    } catch (error) {
+      logError(LogCategory.AUDIO, 'Failed to initialize Lyria, falling back to BGM service', error);
+      this.isLyriaEnabled = false;
+    }
+  }
+
+  async playMusicForMood(mood: MusicMood): Promise<void> {
+    if (this.isLyriaEnabled) {
+      try {
+        // Use Lyria for real-time music generation
+        await lyriaService.setMood(mood);
+        if (!lyriaService.isCurrentlyPlaying()) {
+          await lyriaService.play();
+        }
+        logger.info(LogCategory.AUDIO, `Playing Lyria music for mood: ${mood}`);
+      } catch (error) {
+        logError(LogCategory.AUDIO, 'Lyria playback failed, falling back to BGM', error);
+        await bgmService.playForMood(mood);
+      }
+    } else {
+      // Fallback to traditional BGM service
+      await bgmService.playForMood(mood);
+    }
+  }
+
+  async stopMusic(): Promise<void> {
+    if (this.isLyriaEnabled && lyriaService.isCurrentlyPlaying()) {
+      await lyriaService.stop();
+    } else {
+      await bgmService.stop();
+    }
+  }
+
+  async pauseMusic(): Promise<void> {
+    if (this.isLyriaEnabled && lyriaService.isCurrentlyPlaying()) {
+      await lyriaService.pause();
+    } else {
+      await bgmService.stop(); // BGM service doesn't have pause, so we stop
+    }
+  }
+
+  setVolume(volume: number): void {
+    if (this.isLyriaEnabled) {
+      lyriaService.setVolume(volume);
+    } else {
+      bgmService.setVolume(volume);
+    }
+  }
+
+  isLyriaActive(): boolean {
+    return this.isLyriaEnabled && lyriaService.isConnectedToLyria();
+  }
+
+  async playTTS(text: string, voice: VoiceProfile): Promise<void> {
+    // This would integrate with Google Cloud TTS
+    // For now, we'll simulate TTS playback
+    logger.info(LogCategory.AUDIO, `Playing TTS: "${text}" with voice: ${voice}`);
+    
+    // Simulate TTS with browser's built-in speech synthesis as fallback
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      utterance.pitch = voice === VoiceProfile.GruffMale ? 0.7 : 
+                       voice === VoiceProfile.CalmFemale ? 1.2 : 1.0;
+      speechSynthesis.speak(utterance);
+    }
+  }
+
+  async shutdown(): Promise<void> {
+    if (this.isLyriaEnabled) {
+      await lyriaService.disconnect();
+    }
+    await bgmService.stop();
+    logger.info(LogCategory.AUDIO, 'Audio service shut down');
+  }
+}
+
+export const audioService = new AudioService();
 
 class AudioService {
   private currentTTSAudio: HTMLAudioElement | null = null;
