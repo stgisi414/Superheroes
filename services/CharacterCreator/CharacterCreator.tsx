@@ -36,20 +36,33 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
       setCurrentStep(2);
       // Auto-generate origin story when moving to step 2
       if (characterName && characterConcept && !originStory) {
-        logger.info('CHARACTER_CREATION', 'Starting automatic origin story generation');
+        logger.info('CHARACTER_CREATION', 'Starting automatic origin story generation', {
+          characterName,
+          characterConcept,
+          currentOriginStory: originStory
+        });
         setIsGeneratingOrigin(true);
         try {
           const generatedStory = await geminiService.generateOriginStory(characterName, characterConcept);
           setOriginStory(generatedStory);
-          logger.info('CHARACTER_CREATION', 'Origin story auto-generation completed successfully');
+          logger.info('CHARACTER_CREATION', 'Origin story auto-generation completed successfully', {
+            storyLength: generatedStory.length,
+            storyPreview: generatedStory.substring(0, 100)
+          });
         } catch (error) {
           logger.error('CHARACTER_CREATION', 'Error during automatic origin story generation', error);
           setOriginStory('Unable to generate origin story. Please try again.');
         } finally {
           setIsGeneratingOrigin(false);
         }
-      } else if (originStory) {
-        logger.info('CHARACTER_CREATION', 'Using existing origin story');
+      } else {
+        logger.warn('CHARACTER_CREATION', 'Skipping origin story generation', {
+          hasName: !!characterName,
+          hasConcept: !!characterConcept,
+          hasExistingOrigin: !!originStory,
+          characterName,
+          characterConcept
+        });
       }
     } else if (currentStep === 2) {
       logger.info('CHARACTER_CREATION', 'Moving to portrait step', {
@@ -192,8 +205,18 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
           {currentStep === 1 && (
             <Step1CoreConcept
               onSubmit={(name, concept) => {
+                logger.info('CHARACTER_CREATION', 'Received data from Step 1', {
+                  receivedName: name,
+                  receivedConcept: concept,
+                  currentName: characterName,
+                  currentConcept: characterConcept
+                });
                 setCharacterName(name);
                 setCharacterConcept(concept);
+                logger.info('CHARACTER_CREATION', 'Updated character state', {
+                  newName: name,
+                  newConcept: concept
+                });
                 handleNext();
               }}
             />

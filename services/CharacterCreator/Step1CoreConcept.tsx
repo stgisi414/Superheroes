@@ -28,7 +28,7 @@ const Step1CoreConcept: React.FC<Step1CoreConceptProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-6">
       <div>
         <label htmlFor="characterName" className="block text-sm font-medium text-slate-300 mb-1">
           Character Name
@@ -62,6 +62,16 @@ const Step1CoreConcept: React.FC<Step1CoreConceptProps> = ({
               characterName: name.trim(),
               characterConcept: concept.trim()
             });
+            
+            if (!name.trim()) {
+              setError('Name cannot be empty.');
+              return;
+            }
+            if (!concept.trim()) {
+              setError('Concept cannot be empty.');
+              return;
+            }
+            setError('');
             onSubmit(name.trim(), concept.trim());
           }}
           disabled={name.trim() === '' || concept.trim() === ''}
@@ -69,7 +79,7 @@ const Step1CoreConcept: React.FC<Step1CoreConceptProps> = ({
         >
           Next: Forge Origin
         </Button>
-    </form>
+    </div>
   );
 };
 
