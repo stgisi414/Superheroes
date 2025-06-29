@@ -44,6 +44,22 @@ const App: React.FC = () => {
     playBGMForState();
   }, [appState]);
 
+  // Handle user interaction to enable audio
+  useEffect(() => {
+    const handleUserInteraction = () => {
+      bgmService.retryAudioAfterInteraction();
+    };
+
+    // Add event listeners for user interaction
+    document.addEventListener('click', handleUserInteraction, { once: true });
+    document.addEventListener('keydown', handleUserInteraction, { once: true });
+    
+    return () => {
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+    };
+  }, []);
+
   const handleStartNewGame = () => {
     logger.info('APP_STATE', 'Transitioning to Character Creation');
     setAppState(AppState.CharacterCreation);

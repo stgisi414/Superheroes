@@ -20,42 +20,63 @@ interface LyraTrack {
 class BGMService {
   private currentAudio: HTMLAudioElement | null = null;
   private currentSection: GameSection | null = null;
+
+  constructor() {
+    // Set up user interaction detection
+    this.setupUserInteractionTracking();
+  }
   private isPlaying: boolean = false;
   private volume: number = 0.3;
   private fadeInterval: NodeJS.Timeout | null = null;
   private isLoading: boolean = false;
+  private userHasInteracted: boolean = false;
+  private audioContext: AudioContext | null = null;
 
-  // Using royalty-free music URLs from freesound.org and other sources
+  // Using data URIs for simple generated audio to avoid CORS issues
   private tracks: LyraTrack[] = [
     {
       id: 'menu_heroic',
-      url: 'https://www.soundjay.com/misc/sounds/music/orchestral-theme-01.mp3',
+      url: '', // Will use generated audio
       mood: MusicMood.Heroic,
       section: GameSection.MainMenu,
       volume: 0.4
     },
     {
       id: 'creation_mysterious',
-      url: 'https://www.soundjay.com/misc/sounds/music/ambient-space-01.mp3',
+      url: '', // Will use generated audio
       mood: MusicMood.Mysterious,
       section: GameSection.CharacterCreation,
       volume: 0.3
     },
     {
       id: 'gameplay_ambient',
-      url: 'https://www.soundjay.com/misc/sounds/music/calm-ambient-01.mp3',
+      url: '', // Will use generated audio
       mood: MusicMood.Ambient,
       section: GameSection.NormalGameplay,
       volume: 0.25
     },
     {
       id: 'action_intense',
-      url: 'https://www.soundjay.com/misc/sounds/music/action-theme-01.mp3',
+      url: '', // Will use generated audio
       mood: MusicMood.Intense,
       section: GameSection.ActionGameplay,
       volume: 0.5
     }
   ];
+
+  private setupUserInteractionTracking(): void {
+    const enableAudio = () => {
+      this.userHasInteracted = true;
+      logger.info('BGM_SERVICE', 'User interaction detected - audio enabled');
+      document.removeEventListener('click', enableAudio);
+      document.removeEventListener('keydown', enableAudio);
+      document.removeEventListener('touchstart', enableAudio);
+    };
+
+    document.addEventListener('click', enableAudio);
+    document.addEventListener('keydown', enableAudio);
+    document.addEventListener('touchstart', enableAudio);
+  }
 
   async playForSection(section: GameSection): Promise<void> {
     if (this.currentSection === section && this.isPlaying) {
@@ -64,6 +85,12 @@ class BGMService {
 
     if (this.isLoading) {
       return; // Already loading a track, prevent conflicts
+    }
+
+    if (!this.userHasInteracted) {
+      logger.info('BGM_SERVICE', 'Waiting for user interaction before playing audio');
+      this.currentSection = section; // Remember the section for later
+      return;
     }
 
     logger.info('BGM_SERVICE', `Switching to ${section} music`);
@@ -91,52 +118,13 @@ class BGMService {
 
   private async playTrack(track: LyraTrack): Promise<void> {
     try {
-      logger.info('BGM_SERVICE', `Loading track: ${track.id} for mood: ${track.mood}`);
+      logger.info('BGM_SERVICE', `Generating audio for track: ${track.id} with mood: ${track.mood}`);
       
-      // Create HTML audio element and load the actual track
-      this.currentAudio = new Audio(track.url);
-      this.currentAudio.loop = true;
-      this.currentAudio.volume = 0;
-      this.currentAudio.crossOrigin = "anonymous";
-      
-      // Handle loading errors gracefully
-      this.currentAudio.onerror = (e) => {
-        logger.error('BGM_SERVICE', 'Error loading audio track', { error: e, trackId: track.id });
-        this.fallbackToSilence();
-      };
-
-      // Wait for the audio to be ready to play
-      await new Promise<void>((resolve, reject) => {
-        if (!this.currentAudio) {
-          reject(new Error('Audio element not available'));
-          return;
-        }
-
-        const onCanPlay = () => {
-          this.currentAudio?.removeEventListener('canplaythrough', onCanPlay);
-          this.currentAudio?.removeEventListener('error', onError);
-          resolve();
-        };
-
-        const onError = (e: Event) => {
-          this.currentAudio?.removeEventListener('canplaythrough', onCanPlay);
-          this.currentAudio?.removeEventListener('error', onError);
-          reject(e);
-        };
-
-        this.currentAudio.addEventListener('canplaythrough', onCanPlay);
-        this.currentAudio.addEventListener('error', onError);
-        
-        // Start loading the audio
-        this.currentAudio.load();
-      });
-
-      // Start playing and fade in
-      await this.currentAudio.play();
-      await this.fadeIn(undefined, track.volume);
+      // Generate audio based on mood instead of loading external files
+      await this.generateMoodBasedAudio(track);
       
       this.isPlaying = true;
-      logger.info('BGM_SERVICE', `Now playing: ${track.id}`);
+      logger.info('BGM_SERVICE', `Now playing generated audio: ${track.id}`);
       
     } catch (error) {
       logger.error('BGM_SERVICE', 'Error playing track', { error, trackId: track.id });
@@ -150,43 +138,139 @@ class BGMService {
     this.generateSimpleBackgroundTone();
   }
 
-  private generateSimpleBackgroundTone(): void {
+  private async generateMoodBasedAudio(track: LyraTrack): Promise<void> {
     try {
-      // Create a simple ambient tone using Web Audio API
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
+      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
+      // Ensure AudioContext is running
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+      }
       
-      // Create a soft, ambient drone
-      oscillator.frequency.setValueAtTime(220, audioContext.currentTime); // A3 note
-      oscillator.type = 'sine';
+      const gainNode = this.audioContext.createGain();
+      gainNode.connect(this.audioContext.destination);
       
-      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-      gainNode.gain.linearRampToValueAtTime(0.1 * this.volume, audioContext.currentTime + 2);
+      // Generate audio based on mood
+      switch (track.mood) {
+        case MusicMood.Heroic:
+          this.generateHeroicTheme(gainNode);
+          break;
+        case MusicMood.Mysterious:
+          this.generateMysteriousAmbience(gainNode);
+          break;
+        case MusicMood.Ambient:
+          this.generateAmbientSounds(gainNode);
+          break;
+        case MusicMood.Intense:
+          this.generateIntenseMusic(gainNode);
+          break;
+        default:
+          this.generateAmbientSounds(gainNode);
+      }
       
-      oscillator.start();
+      // Fade in
+      gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(track.volume * this.volume, this.audioContext.currentTime + 2);
       
-      // Clean up after 30 seconds and regenerate
-      setTimeout(() => {
-        gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 1);
-        setTimeout(() => {
-          oscillator.stop();
-          if (this.isPlaying && !this.currentAudio) {
-            this.generateSimpleBackgroundTone(); // Regenerate
-          }
-        }, 1000);
-      }, 30000);
-      
-      this.isPlaying = true;
-      logger.info('BGM_SERVICE', 'Generated simple background tone');
+      logger.info('BGM_SERVICE', `Generated ${track.mood} mood audio`);
       
     } catch (error) {
-      logger.error('BGM_SERVICE', 'Failed to generate background tone', { error });
-      this.stopCurrent();
+      logger.error('BGM_SERVICE', 'Failed to generate mood-based audio', { error });
+      this.fallbackToSilence();
     }
+  }
+
+  private generateHeroicTheme(gainNode: GainNode): void {
+    if (!this.audioContext) return;
+    
+    // Major chord progression with bright tones
+    const frequencies = [261.63, 329.63, 392.00]; // C-E-G major chord
+    frequencies.forEach((freq, index) => {
+      const oscillator = this.audioContext!.createOscillator();
+      const oscGain = this.audioContext!.createGain();
+      
+      oscillator.connect(oscGain);
+      oscGain.connect(gainNode);
+      
+      oscillator.frequency.setValueAtTime(freq, this.audioContext!.currentTime);
+      oscillator.type = 'triangle';
+      oscGain.gain.setValueAtTime(0.3 / frequencies.length, this.audioContext!.currentTime);
+      
+      oscillator.start();
+    });
+  }
+
+  private generateMysteriousAmbience(gainNode: GainNode): void {
+    if (!this.audioContext) return;
+    
+    // Low, haunting tones with slight modulation
+    const oscillator = this.audioContext.createOscillator();
+    const lfo = this.audioContext.createOscillator();
+    const lfoGain = this.audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    lfo.connect(lfoGain);
+    lfoGain.connect(oscillator.frequency);
+    
+    oscillator.frequency.setValueAtTime(110, this.audioContext.currentTime); // Low A
+    oscillator.type = 'sine';
+    
+    lfo.frequency.setValueAtTime(0.5, this.audioContext.currentTime);
+    lfoGain.gain.setValueAtTime(20, this.audioContext.currentTime);
+    
+    oscillator.start();
+    lfo.start();
+  }
+
+  private generateAmbientSounds(gainNode: GainNode): void {
+    if (!this.audioContext) return;
+    
+    // Soft, peaceful drones
+    const frequencies = [220, 330, 440]; // A-E-A
+    frequencies.forEach((freq, index) => {
+      const oscillator = this.audioContext!.createOscillator();
+      const oscGain = this.audioContext!.createGain();
+      
+      oscillator.connect(oscGain);
+      oscGain.connect(gainNode);
+      
+      oscillator.frequency.setValueAtTime(freq, this.audioContext!.currentTime);
+      oscillator.type = 'sine';
+      oscGain.gain.setValueAtTime(0.2 / frequencies.length, this.audioContext!.currentTime);
+      
+      oscillator.start();
+    });
+  }
+
+  private generateIntenseMusic(gainNode: GainNode): void {
+    if (!this.audioContext) return;
+    
+    // Fast, driving rhythm with minor tonality
+    const frequencies = [146.83, 174.61, 220]; // D-F-A minor chord
+    frequencies.forEach((freq, index) => {
+      const oscillator = this.audioContext!.createOscillator();
+      const oscGain = this.audioContext!.createGain();
+      
+      oscillator.connect(oscGain);
+      oscGain.connect(gainNode);
+      
+      oscillator.frequency.setValueAtTime(freq, this.audioContext!.currentTime);
+      oscillator.type = 'sawtooth';
+      oscGain.gain.setValueAtTime(0.4 / frequencies.length, this.audioContext!.currentTime);
+      
+      oscillator.start();
+    });
+  }
+
+  private generateSimpleBackgroundTone(): void {
+    // Fallback to basic ambient tone
+    this.generateMoodBasedAudio({
+      id: 'fallback',
+      url: '',
+      mood: MusicMood.Ambient,
+      section: GameSection.MainMenu,
+      volume: 0.2
+    });
   }
 
   private async fadeIn(gainNode?: GainNode, targetVolume: number = this.volume): Promise<void> {
@@ -242,6 +326,10 @@ class BGMService {
       this.currentAudio.pause();
       this.currentAudio = null;
     }
+    if (this.audioContext) {
+      this.audioContext.close();
+      this.audioContext = null;
+    }
     this.isPlaying = false;
   }
 
@@ -276,6 +364,14 @@ class BGMService {
 
   isCurrentlyPlaying(): boolean {
     return this.isPlaying;
+  }
+
+  // Call this method when user interaction is detected
+  async retryAudioAfterInteraction(): Promise<void> {
+    if (this.userHasInteracted && this.currentSection && !this.isPlaying) {
+      logger.info('BGM_SERVICE', 'Retrying audio playback after user interaction');
+      await this.playForSection(this.currentSection);
+    }
   }
 }
 
