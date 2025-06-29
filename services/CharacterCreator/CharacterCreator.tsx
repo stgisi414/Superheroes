@@ -24,26 +24,29 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
 
   const totalSteps = 4;
 
-  const handleNext = useCallback(async () => {
+  const handleNext = useCallback(async (nameOverride?: string, conceptOverride?: string) => {
+    const currentName = nameOverride || characterName;
+    const currentConcept = conceptOverride || characterConcept;
+    
     logger.info('CHARACTER_CREATION', `Advancing from step ${currentStep} to ${currentStep + 1}`);
 
     if (currentStep === 1) {
       logger.info('CHARACTER_CREATION', 'Moving to origin story step', {
-        characterName,
-        characterConcept,
+        characterName: currentName,
+        characterConcept: currentConcept,
         hasExistingOrigin: !!originStory
       });
       setCurrentStep(2);
       // Auto-generate origin story when moving to step 2
-      if (characterName && characterConcept && !originStory) {
+      if (currentName && currentConcept && !originStory) {
         logger.info('CHARACTER_CREATION', 'Starting automatic origin story generation', {
-          characterName,
-          characterConcept,
+          characterName: currentName,
+          characterConcept: currentConcept,
           currentOriginStory: originStory
         });
         setIsGeneratingOrigin(true);
         try {
-          const generatedStory = await geminiService.generateOriginStory(characterName, characterConcept);
+          const generatedStory = await geminiService.generateOriginStory(currentName, currentConcept);
           setOriginStory(generatedStory);
           logger.info('CHARACTER_CREATION', 'Origin story auto-generation completed successfully', {
             storyLength: generatedStory.length,
@@ -57,11 +60,11 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
         }
       } else {
         logger.warn('CHARACTER_CREATION', 'Skipping origin story generation', {
-          hasName: !!characterName,
-          hasConcept: !!characterConcept,
+          hasName: !!currentName,
+          hasConcept: !!currentConcept,
           hasExistingOrigin: !!originStory,
-          characterName,
-          characterConcept
+          characterName: currentName,
+          characterConcept: currentConcept
         });
       }
     } else if (currentStep === 2) {
@@ -217,7 +220,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
                   newName: name,
                   newConcept: concept
                 });
-                handleNext();
+                handleNext(name, concept);
               }}
             />
           )}
