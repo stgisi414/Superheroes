@@ -17,7 +17,8 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
   const [characterName, setCharacterName] = useState<string>('');
   const [characterConcept, setCharacterConcept] = useState<string>('');
   const [originStory, setOriginStory] = useState<string>('');
-  const [portraitUrl] = useState<string>('');
+  const [portraitUrl, setPortraitUrl] = useState<string>('');
+  const [portraitPrompt, setPortraitPrompt] = useState<string>('');
   const [stats] = useState<CharacterStats>(DEFAULT_STATS);
   const [isGeneratingOrigin, setIsGeneratingOrigin] = useState<boolean>(false);
   const [isGeneratingPortrait, setIsGeneratingPortrait] = useState<boolean>(false);
@@ -79,12 +80,21 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
         logger.info('CHARACTER_CREATION', 'Starting automatic portrait generation');
         setIsGeneratingPortrait(true);
         try {
-          const portraitPrompt = await geminiService.generatePortraitPrompt(characterName, characterConcept, originStory);
-          // Simulate portrait generation (replace with actual image generation service)
-          setPortraitUrl(`https://picsum.photos/300/400?random=${Date.now()}`);
-          logger.info('CHARACTER_CREATION', 'Portrait auto-generation completed successfully');
+          const generatedPrompt = await geminiService.generatePortraitPrompt(characterName, characterConcept, originStory);
+          setPortraitPrompt(generatedPrompt);
+          
+          const generatedPortraitUrl = await geminiService.generatePortrait(generatedPrompt);
+          setPortraitUrl(generatedPortraitUrl);
+          
+          logger.info('CHARACTER_CREATION', 'Portrait auto-generation completed successfully', {
+            promptLength: generatedPrompt.length,
+            portraitUrl: generatedPortraitUrl
+          });
         } catch (error) {
           logger.error('CHARACTER_CREATION', 'Error during automatic portrait generation', error);
+          // Set a fallback placeholder if generation fails
+          setPortraitUrl(`https://picsum.photos/300/400?random=${Date.now()}`);
+          setPortraitPrompt('Portrait generation failed - using placeholder');
         } finally {
           setIsGeneratingPortrait(false);
         }
@@ -181,6 +191,36 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
     }
   };
 
+  const handleRegeneratePortrait = async () => {
+    if (!characterName || !characterConcept || !originStory) {
+      logger.warn('CHARACTER_CREATION', 'Cannot regenerate portrait: missing required data');
+      return;
+    }
+
+    logger.info('CHARACTER_CREATION', 'Starting portrait regeneration');
+    setIsGeneratingPortrait(true);
+    
+    // Clear current portrait
+    setPortraitUrl('');
+    setPortraitPrompt('');
+    
+    try {
+      const generatedPrompt = await geminiService.generatePortraitPrompt(characterName, characterConcept, originStory);
+      setPortraitPrompt(generatedPrompt);
+      
+      const generatedPortraitUrl = await geminiService.generatePortrait(generatedPrompt);
+      setPortraitUrl(generatedPortraitUrl);
+      
+      logger.info('CHARACTER_CREATION', 'Portrait regeneration completed successfully');
+    } catch (error) {
+      logger.error('CHARACTER_CREATION', 'Error during portrait regeneration', error);
+      setPortraitUrl(`https://picsum.photos/300/400?random=${Date.now()}`);
+      setPortraitPrompt('Portrait generation failed - using placeholder');
+    } finally {
+      setIsGeneratingPortrait(false);
+    }
+  };
+
   return (
     <div className="min-h-screen p-4 bg-gradient-to-br from-blue-600 via-purple-600 to-red-600 halftone-bg">
       <div className="max-w-4xl mx-auto">
@@ -260,10 +300,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCharacterCreated 
           {currentStep === 3 && (
             <Step3Portrait
               portraitUrl={portraitUrl}
-              portraitPrompt=""
+              portraitPrompt={portraitPrompt}
               isLoading={isGeneratingPortrait}
               onAccept={handleNext}
-              onRegenerate={() => {}}
+              onRegenerate={handleRegeneratePortrait}
             />
           )}
 

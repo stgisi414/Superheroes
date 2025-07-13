@@ -5,8 +5,7 @@ import { PLACEHOLDER_IMAGE_DIMENSIONS } from '../constants';
 import { logger, LogCategory, logError, logPerformance } from './logger';
 
 // Import the actual Google Generative AI SDK
-// Uncomment the line below when you want to use real Gemini API calls
-// import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
 // IMPORTANT: This service SIMULATES Gemini calls. It does not use the actual @google/genai SDK for these simulations.
 // The API key is assumed to be available via process.env.GEMINI_API_KEY as per requirements.
@@ -22,7 +21,7 @@ const simulatePicsumImage = (width: number, height: number): string => {
 class GeminiService {
   private apiKey: string;
   private useRealAPI: boolean;
-  // private genAI: GoogleGenerativeAI; // Uncomment when using real API
+  private genAI: GoogleGenerativeAI | null = null;
 
   constructor() {
     logger.info(LogCategory.GEMINI, 'Initializing Gemini service');
@@ -44,12 +43,32 @@ class GeminiService {
         logger.info(LogCategory.GEMINI, 'Real Gemini API key found and configured');
     }
 
-    // Uncomment the lines below when you want to use the real Gemini API:
-    // if (this.useRealAPI) {
-    //   this.genAI = new GoogleGenerativeAI(this.apiKey);
-    // }
+    // Initialize the real Gemini API client
+    if (this.useRealAPI) {
+      this.genAI = new GoogleGenerativeAI(this.apiKey);
+    }
   }
 
+  private getSafetySettings() {
+    return [
+      {
+        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      },
+    ];
+  }
 
   async generateOriginStory(name: string, concept: string, creativityLevel: number = 0.7): Promise<string> {
     const endTimer = logPerformance(LogCategory.GEMINI, 'Generate origin story');
@@ -65,25 +84,32 @@ class GeminiService {
 
     try {
       // Use real API if available, otherwise simulate
-      if (this.useRealAPI) {
+      if (this.useRealAPI && this.genAI) {
         logger.info(LogCategory.GEMINI, 'Using real API for origin story generation', { name, concept });
-        // Uncomment when using real API:
-        // try {
-        //   const model = this.genAI.getGenerativeModel({ 
-        //     model: "gemini-pro",
-        //     safetySettings: this.getSafetySettings()
-        //   });
-        //   const result = await model.generateContent(prompt);
-        //   const response = await result.response;
-        //   return response.text();
-        // } catch (error) {
-        //   logError(LogCategory.GEMINI, "Error generating origin story with real API", error);
-        //   // Fallback to simulation if API fails
-        //   return this.simulateOriginStory(name, concept, prompt);
-        // }
-
-        // For now, still simulate even with real API key until you uncomment the code above
-        return this.simulateOriginStory(name, concept, prompt);
+        try {
+          const model = this.genAI.getGenerativeModel({ 
+            model: "gemini-1.5-flash",
+            safetySettings: this.getSafetySettings(),
+            generationConfig: {
+              temperature: creativityLevel,
+              topP: 0.8,
+              topK: 40,
+              maxOutputTokens: 1000,
+            }
+          });
+          const result = await model.generateContent(prompt);
+          const response = await result.response;
+          const text = response.text();
+          logger.info(LogCategory.GEMINI, 'Origin story generated successfully', { 
+            storyLength: text.length,
+            storyPreview: text.substring(0, 100)
+          });
+          return text;
+        } catch (error) {
+          logError(LogCategory.GEMINI, "Error generating origin story with real API", error);
+          // Fallback to simulation if API fails
+          return this.simulateOriginStory(name, concept, prompt);
+        }
       } else {
         logger.info(LogCategory.GEMINI, 'Using simulation for origin story generation', { name, concept });
         return this.simulateOriginStory(name, concept, prompt);
@@ -126,26 +152,49 @@ class GeminiService {
     const endTimer = logPerformance(LogCategory.GEMINI, 'Generate portrait prompt');
     logger.info(LogCategory.GEMINI, 'Generating portrait prompt', { name, concept });
 
-    const delayTime = 500 + Math.random() * 500;
-    await delay(delayTime);
+    const geminiPrompt = `Based on this character's name "${name}", concept "${concept}", and origin story excerpt: "${originStory.substring(0, 200)}...", generate a detailed art prompt for creating their portrait. The prompt should describe their appearance, style, mood, and any visual elements that represent their powers or personality. Keep it under 200 words and focus on visual details that would help an artist create their portrait.`;
 
-    const styleKeywords = concept.toLowerCase().includes('tech') ? "cyberpunk, intricate circuits, glowing neon accents" :
-                         concept.toLowerCase().includes('shadow') ? "dark fantasy, mysterious, ethereal shadows, hooded figure" :
-                         concept.toLowerCase().includes('hero') ? "dynamic comic book art style, heroic pose, vibrant colors" :
-                         concept.toLowerCase().includes('villain') ? "ominous, powerful stance, dramatic lighting, intense expression" :
-                         "detailed character art, cinematic lighting";
+    try {
+      if (this.useRealAPI && this.genAI) {
+        logger.info(LogCategory.GEMINI, 'Using real API for portrait prompt generation');
+        const model = this.genAI.getGenerativeModel({ 
+          model: "gemini-1.5-flash",
+          safetySettings: this.getSafetySettings(),
+          generationConfig: {
+            temperature: 0.8,
+            topP: 0.9,
+            maxOutputTokens: 300,
+          }
+        });
+        const result = await model.generateContent(geminiPrompt);
+        const response = await result.response;
+        const prompt = response.text();
+        
+        logger.info(LogCategory.GEMINI, 'Portrait prompt generated via API', { prompt });
+        endTimer();
+        return prompt;
+      } else {
+        // Fallback to manual prompt generation
+        const delayTime = 500 + Math.random() * 500;
+        await delay(delayTime);
 
-    const prompt = `Detailed character portrait of ${name}. Concept: "${concept}". Key elements from origin: "${originStory.substring(0, 100)}...". Style: ${styleKeywords}, photorealistic details, high fantasy illustration. Focus on the face and upper body, conveying their personality.`;
+        const styleKeywords = concept.toLowerCase().includes('tech') ? "cyberpunk, intricate circuits, glowing neon accents" :
+                             concept.toLowerCase().includes('shadow') ? "dark fantasy, mysterious, ethereal shadows, hooded figure" :
+                             concept.toLowerCase().includes('hero') ? "dynamic comic book art style, heroic pose, vibrant colors" :
+                             concept.toLowerCase().includes('villain') ? "ominous, powerful stance, dramatic lighting, intense expression" :
+                             "detailed character art, cinematic lighting";
 
-    logger.info(LogCategory.GEMINI, 'Portrait prompt generated', { 
-      name, 
-      styleKeywords, 
-      prompt,
-      originStoryPreview: originStory.substring(0, 100) 
-    });
+        const prompt = `Detailed character portrait of ${name}. Concept: "${concept}". Key elements from origin: "${originStory.substring(0, 100)}...". Style: ${styleKeywords}, photorealistic details, high fantasy illustration. Focus on the face and upper body, conveying their personality.`;
 
-    endTimer();
-    return prompt;
+        logger.info(LogCategory.GEMINI, 'Portrait prompt generated (fallback)', { prompt });
+        endTimer();
+        return prompt;
+      }
+    } catch (error) {
+      logError(LogCategory.GEMINI, 'Error generating portrait prompt', error);
+      endTimer();
+      throw error;
+    }
   }
 
   async generatePortrait(imagePrompt: string): Promise<string> {
