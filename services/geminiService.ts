@@ -169,7 +169,7 @@ class GeminiService {
         const result = await model.generateContent(geminiPrompt);
         const response = await result.response;
         const prompt = response.text();
-        
+
         logger.info(LogCategory.GEMINI, 'Portrait prompt generated via API', { prompt });
         endTimer();
         return prompt;
@@ -197,24 +197,61 @@ class GeminiService {
     }
   }
 
-  async generatePortrait(imagePrompt: string): Promise<string> {
-    const endTimer = logPerformance(LogCategory.GEMINI, 'Generate portrait image');
-    logger.info(LogCategory.GEMINI, 'Starting portrait image generation', { prompt: imagePrompt });
+  async generatePortrait(prompt: string): Promise<string> {
+    const endTimer = logPerformance(LogCategory.GEMINI, 'generatePortrait');
+    logger.info(LogCategory.GEMINI, 'Starting portrait generation with fal.ai', { prompt });
 
-    const delayTime = 2000 + Math.random() * 1500;
-    logger.debug(LogCategory.GEMINI, `Simulating image generation delay: ${delayTime.toFixed(0)}ms`);
-    await delay(delayTime);
+    try {
+      // Use fal.ai imagen4fast for real image generation
+      if (process.env.FAL_KEY) {
+        logger.info(LogCategory.GEMINI, 'Using fal.ai imagen4fast for portrait generation');
 
-    // This would be a call to fal.ai or similar. We simulate with Picsum.
-    const imageUrl = simulatePicsumImage(PLACEHOLDER_IMAGE_DIMENSIONS.portrait.width, PLACEHOLDER_IMAGE_DIMENSIONS.portrait.height);
+        const result = await fal.subscribe("fal-ai/fast-sdxl", {
+          input: {
+            prompt: prompt,
+            image_size: "square_hd",
+            num_inference_steps: 25,
+            guidance_scale: 7.5,
+            num_images: 1,
+            enable_safety_checker: true
+          }
+        });
 
-    logger.info(LogCategory.GEMINI, 'Portrait image generated', { 
-      imageUrl, 
-      dimensions: PLACEHOLDER_IMAGE_DIMENSIONS.portrait 
-    });
+        if (result.images && result.images.length > 0) {
+          const imageUrl = result.images[0].url;
+          logger.info(LogCategory.GEMINI, 'Portrait generated successfully via fal.ai', { imageUrl });
+          endTimer();
+          return imageUrl;
+        } else {
+          throw new Error('No images returned from fal.ai');
+        }
+      } else {
+        logger.warn(LogCategory.GEMINI, 'FAL_KEY not found, falling back to placeholder');
+        // Fallback to placeholder if no API key
+        const delayTime = 1000 + Math.random() * 2000;
+        await delay(delayTime);
 
-    endTimer();
-    return imageUrl;
+        const imageUrl = simulatePicsumImage(
+          PLACEHOLDER_IMAGE_DIMENSIONS.portrait.width,
+          PLACEHOLDER_IMAGE_DIMENSIONS.portrait.height
+        );
+
+        logger.info(LogCategory.GEMINI, 'Portrait generated with placeholder', { imageUrl });
+        endTimer();
+        return imageUrl;
+      }
+    } catch (error) {
+      logger.error(LogCategory.GEMINI, 'Failed to generate portrait with fal.ai, using fallback', error);
+
+      // Fallback to placeholder on error
+      const imageUrl = simulatePicsumImage(
+        PLACEHOLDER_IMAGE_DIMENSIONS.portrait.width,
+        PLACEHOLDER_IMAGE_DIMENSIONS.portrait.height
+      );
+
+      endTimer();
+      return imageUrl;
+    }
   }
 
   async generateIllustration(imagePrompt: string, style: string): Promise<string> {
