@@ -15,6 +15,7 @@ export enum LogCategory {
   UI = 'UI',
   STORAGE = 'STORAGE',
   API = 'API',
+  AUTH = 'AUTH',
   PERFORMANCE = 'PERFORMANCE',
 }
 

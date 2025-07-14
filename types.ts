@@ -26,6 +26,7 @@ export interface Character {
   stats: CharacterStats;
   abilities: string[];
   inventory: string[];
+  userId?: string; // Firebase user ID
 }
 
 export type StoryEntryType = 'text' | 'image' | 'narration' | 'music_change' | 'error' | 'system_message';
