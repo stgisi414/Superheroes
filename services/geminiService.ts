@@ -6,6 +6,7 @@ import { logger, LogCategory, logError, logPerformance } from './logger';
 
 // Import the actual Google Generative AI SDK
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import * as fal from '@fal-ai/serverless-client';
 
 // IMPORTANT: This service SIMULATES Gemini calls. It does not use the actual @google/genai SDK for these simulations.
 // The API key is assumed to be available via process.env.GEMINI_API_KEY as per requirements.
@@ -46,6 +47,16 @@ class GeminiService {
     // Initialize the real Gemini API client
     if (this.useRealAPI) {
       this.genAI = new GoogleGenerativeAI(this.apiKey);
+    }
+
+    // Configure fal.ai if API key is available
+    if (process.env.FAL_KEY) {
+      fal.config({
+        credentials: process.env.FAL_KEY
+      });
+      logger.info(LogCategory.GEMINI, 'fal.ai configured with API key');
+    } else {
+      logger.warn(LogCategory.GEMINI, 'FAL_KEY not found, portrait generation will use placeholders');
     }
   }
 
