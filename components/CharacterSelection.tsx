@@ -128,8 +128,18 @@ const CharacterSelection: React.FC<CharacterSelectionProps> = ({
               <div className="text-center h-full flex flex-col justify-center">
                 <div className="text-6xl mb-4">➕</div>
                 <button
-                  onClick={onNewCharacter}
+                  onClick={() => {
+                    console.log('Create New Hero button clicked');
+                    onNewCharacter();
+                  }}
                   className="comic-button py-3 text-black font-bold"
+                  style={{ 
+                    cursor: 'pointer', 
+                    pointerEvents: 'auto',
+                    backgroundColor: '#fbbf24',
+                    border: '2px solid #000',
+                    padding: '12px 24px'
+                  }}
                 >
                   Create New Hero
                 </button>
